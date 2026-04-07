@@ -13,6 +13,13 @@ export class Fairies {
     private _fairies: Fairy[] = [];
     /** Canvas context shared with every fairy that is linked into this layer. */
     private _ctx: CanvasRenderingContext2D | null = null;
+    /** Y coordinate below which any fairy is immediately killed. Defaults to Infinity (off). */
+    private _yMax = Infinity;
+
+    /** Set the bottom boundary: any fairy whose Y position exceeds this is marked dead. */
+    setYMax(yMax: number): void {
+        this._yMax = yMax;
+    }
 
     /** Set the rendering context that will be passed to each linked fairy. */
     setContext(ctx: CanvasRenderingContext2D): void {
@@ -35,6 +42,9 @@ export class Fairies {
         let hasDeadFairies = false;
         for (const fairy of this._fairies) {
             fairy.proceed();
+            if (fairy.oFlight.vPosition.y > this._yMax) {
+                fairy.bDead = true;
+            }
             hasDeadFairies ||= fairy.bDead;
         }
         if (hasDeadFairies) {this._removeDeadFairies();}

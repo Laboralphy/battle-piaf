@@ -5,6 +5,13 @@ import { FairyInputState } from '../engine/FairyInputState.js';
 import { Fairy } from '../engine/Fairy.js';
 import { WDPlayerFlight } from './WDPlayerFlight.js';
 
+/** Weapons a player can fire. */
+export const enum Weapon {
+    WEAPON_BULLET,
+    WEAPON_MISSILE,
+    WEAPON_GRENADE,
+}
+
 /**
  * Key bindings for one player.
  * Values are browser key codes (see `FairyKeys`).
@@ -18,6 +25,8 @@ export interface PlayerKeys {
     up: number;
     /** Fire a projectile. */
     fire: number;
+    /** Drop through a semi-solid platform (optional). */
+    down?: number;
 }
 
 /**
@@ -37,24 +46,28 @@ export class WDPlayer extends Fairy {
     readonly nCode: number;
 
     /** Horizontal movement intent this tick: -1 = left, 0 = still, 1 = right. */
-    nDir = 0;
+    nDir: number = 0;
     /** Last horizontal facing direction: -1 = left, 1 = right. */
-    nFace = 1;
+    nFace: number = 1;
 
     /** True when the player is resting on a floor tile this tick. */
-    bOnFloor = false;
+    bOnFloor: boolean = false;
     /** Set to true by `updateState` when the fire key is pressed; consumed by WDGame. */
-    bWantFire = false;
+    bWantFire: boolean = false;
     /** Set to true by `updateState` when a jump is initiated; consumed by WDGame for sound. */
-    bJustJumped = false;
+    bJustJumped: boolean = false;
+    /** Set to true by `updateState` when the down key is pressed while on a floor; consumed by WDGame collision. */
+    nWantDown: number = 0;
 
     /** Vertical speed applied when jumping (negative = upward). */
     readonly fJump = 6.9;
     /** Horizontal speed applied when moving left or right. */
     readonly fSpeed = 3;
-
     /** Accumulated score: incremented each time an enemy projectile hits this player. */
     nScore = 0;
+    /** Weapon selected for the next shot; set by WDGame before spawning a projectile. */
+    selectedWeapon: Weapon = Weapon.WEAPON_MISSILE;
+
 
     constructor(nCode: number) {
         super();
@@ -75,8 +88,12 @@ export class WDPlayer extends Fairy {
 
         // Tangibility: player 0 = 5 (101b), player 1 = 6 (110b)
         // This means each player collides with the enemy's bullets but not their own.
+        const PLAYER_THICKNESS = 13;
         this.setBoundingShape(
-            new FairyCollisionRect(new Vector2D(-14, -31), new Vector2D(15, 0)),
+            new FairyCollisionRect(
+                new Vector2D(-PLAYER_THICKNESS + 1, -31),
+                new Vector2D(PLAYER_THICKNESS, 0)
+            ),
             4 + nCode + 1
         );
 
@@ -104,7 +121,7 @@ export class WDPlayer extends Fairy {
         this.nDir = 0;
 
         if (input.getKeyState(keys.right)) {this.nDir++;}
-        if (input.getKeyState(keys.left)) {this.nDir--;}
+        if (input.getKeyState(keys.left))  {this.nDir--;}
 
         if (input.getKeyState(keys.up)) {
             if (this.bOnFloor) {
@@ -117,6 +134,13 @@ export class WDPlayer extends Fairy {
         if (input.getKeyState(keys.fire)) {
             this.bWantFire = true;
             input.setKeyState(keys.fire, false);
+        }
+
+        if (keys.down !== undefined && input.getKeyState(keys.down)) {
+            if (this.bOnFloor) {
+                this.nWantDown = 15;
+            }
+            input.setKeyState(keys.down, false);
         }
 
         this.oFlight.vSpeed.x = this.nDir * this.fSpeed;

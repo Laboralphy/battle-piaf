@@ -8,16 +8,18 @@ import { FairyMatrix } from '../engine/FairyMatrix.js';
 import { Fairies } from '../engine/Fairies.js';
 import { LoopType } from '../engine/FairyAnimation.js';
 import { WDBullet } from './WDBullet.js';
-import { WDPlayer } from './WDPlayer.js';
+import { WDPlayer, Weapon } from './WDPlayer.js';
 import { WDPlayerFlight } from './WDPlayerFlight.js';
-import { ICollidable } from '../engine/FairyCollision.js';
+import { ICollidable, FairyCollisionRect } from '../engine/FairyCollision.js';
 import { Fairy } from '../engine/Fairy.js';
 import { SoundManager } from './SoundManager.js';
 import { LEVELS } from '../data/levels.js';
 import { WDMissile } from './WDMissile.js';
+import { WDGrenade } from './WDGrenade.js';
 import { WDFire } from './WDFire.js';
 import { WDExhaust } from './WDExhaust.js';
 import { WDExplosion } from './WDExplosion.js';
+import { WDBulletExplosion } from './WDBulletExplosion.js';
 
 /**
  * Keyboard bindings for each player.
@@ -25,16 +27,17 @@ import { WDExplosion } from './WDExplosion.js';
  */
 const PLAYER_KEYS = [
     {
-        left: FairyKeys.ALPHANUM.S,
-        right: FairyKeys.ALPHANUM.F,
-        up: FairyKeys.ALPHANUM.E,
-        fire: FairyKeys.ALPHANUM.D,
+        left: FairyKeys.ALPHANUM.Q,
+        right: FairyKeys.ALPHANUM.D,
+        up: FairyKeys.ALPHANUM.Z,
+        fire: FairyKeys.SPACE,
+        down: FairyKeys.ALPHANUM.S,
     },
     {
         left: FairyKeys.NUMPAD[4],
         right: FairyKeys.NUMPAD[6],
         up: FairyKeys.NUMPAD[8],
-        fire: FairyKeys.NUMPAD[5],
+        fire: FairyKeys.NUMPAD.ENTER,
     },
 ] as const;
 
@@ -85,6 +88,7 @@ export class WDGame extends FairyEngine {
         this._land = this.createMatrixLayer('bob', 20, 15, 32, 32);
         this.createCollider(20, 15, 32, 32);
         this._sprites = this.createFairyLayer();
+        this._sprites.setYMax(480);
 
         const levelData = LEVELS[0];
         this._buildLevel(levelData);
@@ -129,15 +133,40 @@ export class WDGame extends FairyEngine {
 
         for (const player of this._players) {
             if (player.bWantFire) {
+                const roll = Math.random();
+                player.selectedWeapon =
+                    roll < 0.33
+                        ? Weapon.WEAPON_BULLET
+                        : roll < 0.66
+                        ? Weapon.WEAPON_MISSILE
+                        : Weapon.WEAPON_GRENADE;
                 const enemy = this._players[1 - player.nCode];
-                this.createFairy(
-                    this._sprites,
-                    'spr_fire',
-                    new WDMissile(player, enemy, (x, y) =>
-                        this.createFairy(this._sprites, 'spr_fire', new WDExhaust(x, y))
+                let projectile: Fairy;
+                if (player.selectedWeapon === Weapon.WEAPON_BULLET) {
+                    projectile = this.createFairy(this._sprites, 'spr_fire', new WDBullet(player));
+                } else if (player.selectedWeapon === Weapon.WEAPON_MISSILE) {
+                    projectile = this.createFairy(
+                        this._sprites,
+                        'spr_fire',
+                        new WDMissile(player, enemy, (x, y) =>
+                            this.createFairy(this._sprites, 'spr_fire', new WDExhaust(x, y))
+                        )
+                    );
+                } else {
+                    projectile = this.createFairy(this._sprites, 'spr_fire', new WDGrenade(player));
+                }
+                projectile.oObservatory.attach(
+                    'fire',
+                    new Observer(this, (sender: Fairy) =>
+                        this._sounds.play((sender as WDFire).soundOnFire)
                     )
                 );
-                this._sounds.play('shoot');
+                projectile.oObservatory.attach(
+                    'move',
+                    new Observer(this, (sender: Fairy) =>
+                        this._checkProjectileLandCollision(sender as WDFire)
+                    )
+                );
                 player.bWantFire = false;
             }
         }
@@ -191,62 +220,93 @@ export class WDGame extends FairyEngine {
             flight.vNewSpeed.y = 14;
         }
 
-        // Tile floor collision (semi-solid * and fully solid #, only while falling)
-        player.bOnFloor = false;
-        if (flight.vNewSpeed.y > 0) {
-            const tileX1 = Math.floor(flight.vNewPosition.x - 8) >> 5;
-            const tileX2 = Math.floor(flight.vNewPosition.x + 8) >> 5;
-            const tileY = Math.floor(flight.vNewPosition.y + 1) >> 5;
-            const subY = Math.floor(flight.vNewPosition.y + 1) % 32;
+        const rect = player.oBoundingShape as FairyCollisionRect;
 
-            if (
-                subY < 16 &&
-                (this._land.getTileCode(tileX1, tileY) > 0 ||
-                    this._land.getTileCode(tileX2, tileY) > 0)
-            ) {
-                flight.vNewPosition.y = (tileY << 5) - 1;
-                flight.vNewSpeed.y = 0;
-                player.bOnFloor = true;
+        // Tile wall collision (fully solid # only) — resolved first so that
+        // floor/ceiling probes are never inside a wall column.
+        // Two vertical probes: near feet (p2.y-1) and near head (p1.y+1)
+        {
+            const [p1, p2] = rect.getPoints();
+            // Probe rows anchored to vPosition (last committed tick), not vNewPosition.
+            // This prevents the bottom probe from landing inside the floor tile while
+            // falling, which would cause a false horizontal push on every landing.
+            const bottomOffset = p2.y - flight.vNewPosition.y; // v2.y offset (= 0)
+            const topOffset    = p1.y - flight.vNewPosition.y; // v1.y offset (= -31)
+            const wallTileY1   = Math.floor(flight.vPosition.y + bottomOffset - 1) >> 5;
+            const wallTileY2   = Math.floor(flight.vPosition.y + topOffset    + 1) >> 5;
+            const rightOffset  = p2.x - flight.vNewPosition.x; // v2.x offset of right edge
+            const leftOffset   = p1.x - flight.vNewPosition.x; // v1.x offset of left edge
+
+            if (flight.vNewPosition.x > flight.vPosition.x) {
+                const tileX = Math.floor(p2.x + 1) >> 5;
+                if (
+                    this._land.getTileCode(tileX, wallTileY1) >= 2 ||
+                    this._land.getTileCode(tileX, wallTileY2) >= 2
+                ) {
+                    // snap right edge 1px left of tile face
+                    flight.vNewPosition.x = (tileX << 5) - 1 - rightOffset;
+                    flight.vNewSpeed.x = 0;
+                }
+            } else if (flight.vNewPosition.x < flight.vPosition.x) {
+                const tileX = Math.floor(p1.x - 1) >> 5;
+                if (
+                    this._land.getTileCode(tileX, wallTileY1) >= 2 ||
+                    this._land.getTileCode(tileX, wallTileY2) >= 2
+                ) {
+                    // snap left edge to tile right face
+                    flight.vNewPosition.x = ((tileX + 1) << 5) - leftOffset;
+                    flight.vNewSpeed.x = 0;
+                }
             }
         }
 
+        // Tile floor collision (semi-solid * and fully solid #, only while falling)
+        player.bOnFloor = false;
+        if (flight.vNewPosition.y > flight.vPosition.y) {
+            const [p1, p2] = rect.getPoints();
+            const tileX1  = Math.floor(p1.x) >> 5;
+            const tileX2  = Math.floor(p2.x) >> 5;
+            const tileY   = Math.floor(p2.y + 1) >> 5;
+            const subY    = Math.floor(p2.y + 1) % 32;
+            // Row just above the floor tile — probes whose column contains a solid tile
+            // here are inside a wall and must not trigger floor detection.
+            const bodyRow = tileY - 1;
+
+            if (subY < 16) {
+                const code1 = this._land.getTileCode(tileX1, bodyRow) < 2
+                    ? this._land.getTileCode(tileX1, tileY) : 0;
+                const code2 = this._land.getTileCode(tileX2, bodyRow) < 2
+                    ? this._land.getTileCode(tileX2, tileY) : 0;
+                const maxCode = Math.max(code1, code2);
+                if (maxCode > 0) {
+                    const bMustStabilize = maxCode === 2 || (maxCode === 1 && player.nWantDown === 0);
+                    if (bMustStabilize) {
+                        // p2.y (bottom edge, v2.y=0) snapped 1px above tile top
+                        flight.vNewPosition.y = (tileY << 5) - 1;
+                        flight.vNewSpeed.y = 0;
+                        player.bOnFloor = true;
+                    }
+                }
+            }
+        }
+        if (player.nWantDown > 0) {
+            --player.nWantDown;
+        }
+
         // Tile ceiling collision (fully solid # only, while rising)
-        if (flight.vNewSpeed.y < 0) {
-            const tileX1 = Math.floor(flight.vNewPosition.x - 8) >> 5;
-            const tileX2 = Math.floor(flight.vNewPosition.x + 8) >> 5;
-            const tileY = Math.floor(flight.vNewPosition.y - 16) >> 5;
+        if (flight.vNewPosition.y < flight.vPosition.y) {
+            const [p1, p2] = rect.getPoints();
+            const tileX1 = Math.floor(p1.x) >> 5;
+            const tileX2 = Math.floor(p2.x) >> 5;
+            const tileY  = Math.floor(p1.y) >> 5; // top edge (head)
 
             if (
                 this._land.getTileCode(tileX1, tileY) >= 2 ||
                 this._land.getTileCode(tileX2, tileY) >= 2
             ) {
-                flight.vNewPosition.y = ((tileY + 1) << 5) + 15; // push head just below tile bottom
+                // p1.y (top edge, v1.y=-31) snapped to tile bottom: pos.y = (tileY+1)*32 + 31
+                flight.vNewPosition.y = ((tileY + 1) << 5) + 31;
                 flight.vNewSpeed.y = 0;
-            }
-        }
-
-        // Tile wall collision (fully solid # only, horizontal movement)
-        // Two vertical probes span the player body (feet−2 and head+2)
-        const wallTileY1 = Math.floor(flight.vNewPosition.y - 2) >> 5;
-        const wallTileY2 = Math.floor(flight.vNewPosition.y - 14) >> 5;
-
-        if (flight.vNewSpeed.x > 0) {
-            const tileX = Math.floor(flight.vNewPosition.x + 9) >> 5;
-            if (
-                this._land.getTileCode(tileX, wallTileY1) >= 2 ||
-                this._land.getTileCode(tileX, wallTileY2) >= 2
-            ) {
-                flight.vNewPosition.x = (tileX << 5) - 9; // push right edge to left face of tile
-                flight.vNewSpeed.x = 0;
-            }
-        } else if (flight.vNewSpeed.x < 0) {
-            const tileX = Math.floor(flight.vNewPosition.x - 9) >> 5;
-            if (
-                this._land.getTileCode(tileX, wallTileY1) >= 2 ||
-                this._land.getTileCode(tileX, wallTileY2) >= 2
-            ) {
-                flight.vNewPosition.x = ((tileX + 1) << 5) + 8; // push left edge to right face of tile
-                flight.vNewSpeed.x = 0;
             }
         }
     }
@@ -259,7 +319,9 @@ export class WDGame extends FairyEngine {
      *   knock-back shock to the hit player, spawn an explosion, and destroy the missile.
      */
     private _playerFairyCollision(player: WDPlayer, flight: WDPlayerFlight): void {
-        if (!player.oCollider) {return;}
+        if (!player.oCollider) {
+            return;
+        }
         const collisions = player.oCollider.getCollisioningObjects(player) as ICollidable[];
 
         for (const other of collisions) {
@@ -276,12 +338,36 @@ export class WDGame extends FairyEngine {
                 other.oOwner.nScore++;
                 flight.vShock.set(other.oFlight.vSpeed);
                 flight.vShock.y -= 2;
-                this.createFairy(this._sprites, 'spr_fire',
-                    new WDExplosion(other.oFlight.vPosition.x, other.oFlight.vPosition.y)
-                );
-                (other as Fairy).bDead = true;
-                this._sounds.play('hit');
+                this._explodeProjectile(other, other.oFlight.vPosition.x, other.oFlight.vPosition.y);
             }
+        }
+    }
+
+    // ── Projectile helpers ────────────────────────────────────────────────────
+
+    /** Spawn the appropriate explosion, play its sound, and mark the projectile dead. */
+    private _explodeProjectile(fire: WDFire, x: number, y: number): void {
+        const ex = fire instanceof WDBullet
+            ? new WDBulletExplosion(x, y)
+            : new WDExplosion(x, y);
+        this.createFairy(this._sprites, 'spr_fire', ex);
+        fire.bDead = true;
+        this._sounds.play(fire.soundOnExplosion);
+    }
+
+    /**
+     * 'move' observer for projectile-vs-land collision.
+     * Checks the centre of the bounding box against the tile map;
+     * explodes the projectile if it enters a fully solid tile (#, code ≥ 2).
+     */
+    private _checkProjectileLandCollision(fire: WDFire): void {
+        if (fire.bDead) {return;}
+        const rect = fire.oBoundingShape as FairyCollisionRect;
+        const [p1, p2] = rect.getPoints();
+        const cx = (p1.x + p2.x) / 2;
+        const cy = (p1.y + p2.y) / 2;
+        if (this._land.getTileCode(Math.floor(cx) >> 5, Math.floor(cy) >> 5) >= 2) {
+            this._explodeProjectile(fire, cx, cy);
         }
     }
 

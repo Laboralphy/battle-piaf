@@ -3,6 +3,7 @@ import { FairyAnimation } from '../engine/FairyAnimation.js';
 import { FairyCollisionRect } from '../engine/FairyCollision.js';
 import { WDPlayer } from './WDPlayer.js';
 import { WDFire } from './WDFire.js';
+import type { SoundId } from './SoundManager.js';
 
 /**
  * Fast straight-line projectile fired by a player.
@@ -16,6 +17,9 @@ import { WDFire } from './WDFire.js';
  * (never with its own owner).
  */
 export class WDBullet extends WDFire {
+    readonly soundOnFire: SoundId = 'shoot-bullet';
+    readonly soundOnExplosion: SoundId = 'hit';
+
     constructor(owner: WDPlayer) {
         super(owner);
         this.setSize(16, 16);

@@ -45,9 +45,9 @@ html, body {
 .marquee-text {
   display: inline-block;
   white-space: nowrap;
-  font-family: monospace;
+  font-family: '10 Pixel', serif;
   font-weight: bold;
-  font-size: 32px;
+  font-size: 40px;
   color: #ffe066;
   text-shadow: 0 0 6px rgba(255, 180, 0, 0.7);
 }

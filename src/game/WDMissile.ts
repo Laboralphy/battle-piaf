@@ -3,6 +3,7 @@ import { FairyAnimation } from '../engine/FairyAnimation.js';
 import { FairyCollisionRect } from '../engine/FairyCollision.js';
 import { WDPlayer } from './WDPlayer.js';
 import { WDFire } from './WDFire.js';
+import type { SoundId } from './SoundManager.js';
 
 /** Maximum vertical homing speed in pixels per tick. */
 const MAX_VSPEED = 2.5;
@@ -26,6 +27,9 @@ const EXHAUST_INTERVAL = 3;
  * - Animation 1 (tile 34–35): left-facing missile.
  */
 export class WDMissile extends WDFire {
+    readonly soundOnFire: SoundId = 'shoot-missile';
+    readonly soundOnExplosion: SoundId = 'explosion-missile';
+
     /** The player this missile is steering toward. */
     private _target: WDPlayer;
     /** Factory callback that spawns an exhaust particle at (x, y). */
@@ -83,8 +87,12 @@ export class WDMissile extends WDFire {
         const missileCenterY = this.oFlight.vPosition.y + this.nHeight / 2;
         const dy = targetCenterY - missileCenterY;
         this.oFlight.vSpeed.y = this.oFlight.vSpeed.y * 0.9 + Math.sign(dy) * VACCEL;
-        if (this.oFlight.vSpeed.y >  MAX_VSPEED) this.oFlight.vSpeed.y =  MAX_VSPEED;
-        if (this.oFlight.vSpeed.y < -MAX_VSPEED) this.oFlight.vSpeed.y = -MAX_VSPEED;
+        if (this.oFlight.vSpeed.y >  MAX_VSPEED) {
+            this.oFlight.vSpeed.y =  MAX_VSPEED;
+        }
+        if (this.oFlight.vSpeed.y < -MAX_VSPEED) {
+            this.oFlight.vSpeed.y = -MAX_VSPEED;
+        }
 
         // Exhaust trail: spawn a particle at the rear of the missile
         if (++this._exhaustTimer >= EXHAUST_INTERVAL) {

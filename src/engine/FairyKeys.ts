@@ -5,6 +5,7 @@
 export const FairyKeys = {
     BACKSPACE: 8,
     TAB: 9,
+    SPACE: 32,
     ENTER: 13,
     SHIFT: 16,
     CTRL: 17,
@@ -73,6 +74,7 @@ export const FairyKeys = {
         7: 103,
         8: 104,
         9: 105,
+        ENTER: 13,
         MULTIPLY: 106,
         ADD: 107,
         SUBSTRACT: 109,

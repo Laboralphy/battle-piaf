@@ -8,11 +8,13 @@ function setActive(id: string, active: boolean): void {
 
 export function initMenu(): void {
     const menuEl = document.getElementById('menu');
-    if (menuEl) {new Marquee(menuEl, MARQUEE_TEXT);}
+    if (menuEl) {
+        new Marquee(menuEl, MARQUEE_TEXT);
+    }
 }
 
 export function gameStart(): void {
-    window.removeEventListener('keydown', gameStart);
+    globalThis.removeEventListener('keydown', gameStart);
     setActive('menu', false);
     setActive('game-screen', true);
     setActive('controls', true);

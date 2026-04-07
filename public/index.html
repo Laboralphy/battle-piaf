@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Battle Piaf HTML5</title>
+    <link rel="stylesheet" href="assets/styles/main.css"/>
+  </head>
+  <body>
+    <div id="controls" data-active="false">
+      <pre>controls:
+<span style="color:blue">blue player:</span>
+  left:  S    right: F
+  jump:  E    shoot: D
+<span style="color:#a00">red player:</span>
+  left:  Num4  right: Num6
+  jump:  Num8  shoot: Num5</pre>
+      <small>Code, graphismes: Ralphy</small>
+      <div id="score">
+        <table>
+          <tr>
+            <td><span style="color:#00f">BLUE: </span></td>
+            <td><span id="score_0">0</span></td>
+          </tr>
+          <tr>
+            <td><span style="color:#aa0000">RED: </span></td>
+            <td><span id="score_1">0</span></td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <div id="layout">
+      <div id="menu" data-active="true">
+      </div>
+      <canvas id="game-screen" data-active="false" width="640" height="480"></canvas>
+    </div>
+
+    <script src="dist/game.js"></script>
+  </body>
+</html>

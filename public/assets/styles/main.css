@@ -1,0 +1,103 @@
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: #111;
+  overflow: hidden;
+}
+
+#layout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  gap: 8px;
+}
+
+[data-active="false"] {
+  display: none !important;
+}
+
+/* ── Marquee ─────────────────────────────────────────────────────────────── */
+
+@keyframes marquee-scroll {
+  from { transform: translateX(100vw); }
+  to   { transform: translateX(-100%); }
+}
+
+.marquee-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 48px;
+  background: rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+
+.marquee-text {
+  display: inline-block;
+  white-space: nowrap;
+  font-family: monospace;
+  font-weight: bold;
+  font-size: 32px;
+  color: #ffe066;
+  text-shadow: 0 0 6px rgba(255, 180, 0, 0.7);
+}
+
+/* ── Menu ────────────────────────────────────────────────────────────────── */
+
+#menu {
+  background-image: url(../images/splash-0.png);
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: contain;
+  image-rendering: pixelated;
+}
+
+#menu[data-active="true"] {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Game screen ─────────────────────────────────────────────────────────── */
+
+#game-screen[data-active="true"] {
+  display: block;
+  width: min(100vw, calc(100vh * 640 / 480));
+  height: auto;
+  image-rendering: pixelated;
+}
+
+/* ── Score & controls ────────────────────────────────────────────────────── */
+
+#score {
+  color: #000;
+  font-family: monospace;
+  font-size: clamp(12px, 2vw, 20px);
+  text-align: center;
+}
+
+#controls[data-active="true"] {
+  display: block;
+  position: fixed;
+  left: 8px;
+  top: 8px;
+  padding: 6px 8px;
+  background: rgba(187, 187, 187, 0.85);
+  font-family: monospace;
+  font-size: clamp(10px, 1.2vw, 13px);
+  line-height: 1.5;
+  border-radius: 4px;
+}

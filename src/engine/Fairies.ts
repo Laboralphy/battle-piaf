@@ -1,0 +1,67 @@
+import { Fairy } from './Fairy.js';
+
+/**
+ * Layer that owns and manages a collection of sprites.
+ * `proceed()` runs every tick for all fairies; dead fairies are cleaned up
+ * afterwards.  `render()` draws them all in insertion order.
+ * New fairies pushed during `proceed()` (e.g. spawned by a collision handler)
+ * are picked up in the same tick because `for...of` on the live array sees
+ * elements appended after iteration started.
+ */
+export class Fairies {
+    /** All currently live sprites in this layer. */
+    private _fairies: Fairy[] = [];
+    /** Canvas context shared with every fairy that is linked into this layer. */
+    private _ctx: CanvasRenderingContext2D | null = null;
+
+    /** Set the rendering context that will be passed to each linked fairy. */
+    setContext(ctx: CanvasRenderingContext2D): void {
+        this._ctx = ctx;
+    }
+
+    /**
+     * Add a fairy to this layer.
+     * Assigns the layer's canvas context to the fairy and appends it to the list.
+     */
+    linkFairy(fairy: Fairy): void {
+        fairy.setContext(this._ctx!);
+        this._fairies.push(fairy);
+    }
+
+    /**
+     * Advance all fairies by one tick, then remove any that are marked dead.
+     */
+    proceed(): void {
+        let hasDeadFairies = false;
+        for (const fairy of this._fairies) {
+            fairy.proceed();
+            hasDeadFairies ||= fairy.bDead;
+        }
+        if (hasDeadFairies) {this._removeDeadFairies();}
+    }
+
+    /** Draw all fairies in insertion order. */
+    render(): void {
+        for (const fairy of this._fairies) {
+            fairy.render();
+        }
+    }
+
+    /**
+     * Sweep the fairy list from the end, removing dead entries using swap-with-last
+     * for O(1) removal.  Calls `free()` on each removed fairy to unregister it from
+     * the collider.
+     */
+    private _removeDeadFairies(): void {
+        for (let i = this._fairies.length - 1; i >= 0; i--) {
+            if (this._fairies[i].bDead) {
+                this._fairies[i].free();
+                // swap-with-last for O(1) removal
+                const last = this._fairies.pop()!;
+                if (i < this._fairies.length) {
+                    this._fairies[i] = last;
+                }
+            }
+        }
+    }
+}

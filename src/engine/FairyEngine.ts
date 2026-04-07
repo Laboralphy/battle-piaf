@@ -55,6 +55,13 @@ export class FairyEngine {
     private _rafId: number | null = null;
     /** Monotonically increasing tick counter; used for 30fps render throttle. */
     private _frame = 0;
+
+    /** Bound input handlers — stored so they can be removed by `destroy()`. */
+    private _onKeyDown = (e: KeyboardEvent) => this._input.setKeyState(e.keyCode || e.which, true);
+    private _onKeyUp   = (e: KeyboardEvent) => this._input.setKeyState(e.keyCode || e.which, false);
+    private _onMouseMove  = (e: MouseEvent) => this._input.setMouseXY(e.clientX, e.clientY);
+    private _onMouseDown  = (e: MouseEvent) => { this._input.setMouseButton(e.button, true);  return false; };
+    private _onMouseUp    = (e: MouseEvent) => { this._input.setMouseButton(e.button, false); return false; };
     /** View state for score / HUD variables. See `setViewVariable` / `updateView`. */
     private _view: ViewState = { invalid: true };
 
@@ -132,7 +139,9 @@ export class FairyEngine {
 
     /** Throw if `setCanvas` has not been called yet. */
     private _requireCanvas(): void {
-        if (!this._ctx) {throw new Error('FairyEngine: call setCanvas() first!');}
+        if (!this._ctx) {
+            throw new Error('FairyEngine: call setCanvas() first!');
+        }
     }
 
     // ── Layer factories ──────────────────────────────────────────────────────
@@ -196,14 +205,18 @@ export class FairyEngine {
 
     /**
      * Instantiate a sprite, attach resources, and add it to `layer`.
+     * The return type matches the concrete subtype passed as `fairy`, so the caller
+     * retains access to subclass-specific properties and the correct `oObservatory`
+     * event map without needing a cast.
      * @param layer   - The `Fairies` layer to add the sprite to.
      * @param imageId - Key of the pre-loaded sprite sheet image.
      * @param fairy   - The sprite instance (defaults to a plain `Fairy`).
-     * @returns The sprite, cast to the provided subtype.
      */
-    createFairy(layer: Fairies, imageId: string, fairy: Fairy = new Fairy()): Fairy {
+    createFairy<T extends Fairy>(layer: Fairies, imageId: string, fairy: T = new Fairy() as T): T {
         fairy.setImage(this._images.get(imageId)!);
-        if (this._collider) {fairy.setCollider(this._collider);}
+        if (this._collider) {
+            fairy.setCollider(this._collider);
+        }
         layer.linkFairy(fairy);
         return fairy;
     }
@@ -224,7 +237,9 @@ export class FairyEngine {
      * allowing `updateView` callers to skip DOM updates when nothing has changed.
      */
     protected setViewVariable(key: string, value: unknown): void {
-        if (key in this._view && this._view[key] === value) {return;}
+        if (key in this._view && this._view[key] === value) {
+            return;
+        }
         this._view[key] = value;
         this._view.invalid = true;
     }
@@ -264,6 +279,22 @@ export class FairyEngine {
     }
 
     /**
+     * Stop the loop, remove all input event listeners, and drop all layers.
+     * Call this when discarding the engine so the instance can be garbage collected.
+     */
+    destroy(): void {
+        this.stop();
+        window.removeEventListener('keydown', this._onKeyDown);
+        window.removeEventListener('keyup',   this._onKeyUp);
+        if (this._canvas) {
+            this._canvas.removeEventListener('mousemove',  this._onMouseMove);
+            this._canvas.removeEventListener('mousedown',  this._onMouseDown as unknown as EventListener);
+            this._canvas.removeEventListener('mouseup',    this._onMouseUp as unknown   as EventListener);
+        }
+        this.clearLayers();
+    }
+
+    /**
      * Advance all layers by one tick and render every other tick.
      * Rendering is skipped on even ticks to stay near 30 fps on 60 Hz displays.
      */
@@ -282,26 +313,13 @@ export class FairyEngine {
 
     /** Attach keyboard and mouse event listeners to the window and canvas. */
     private _bindInputEvents(): void {
-        window.addEventListener('keydown', (e) =>
-            this._input.setKeyState(e.keyCode || e.which, true)
-        );
-        window.addEventListener('keyup', (e) =>
-            this._input.setKeyState(e.keyCode || e.which, false)
-        );
+        window.addEventListener('keydown', this._onKeyDown);
+        window.addEventListener('keyup',   this._onKeyUp);
 
-        const canvas = this._canvas;
-        if (canvas) {
-            canvas.addEventListener('mousemove', (e) =>
-                this._input.setMouseXY(e.clientX, e.clientY)
-            );
-            canvas.addEventListener('mousedown', (e) => {
-                this._input.setMouseButton(e.button, true);
-                return false;
-            });
-            canvas.addEventListener('mouseup', (e) => {
-                this._input.setMouseButton(e.button, false);
-                return false;
-            });
+        if (this._canvas) {
+            this._canvas.addEventListener('mousemove', this._onMouseMove);
+            this._canvas.addEventListener('mousedown', this._onMouseDown as unknown as EventListener);
+            this._canvas.addEventListener('mouseup',   this._onMouseUp as unknown   as EventListener);
         }
     }
 }

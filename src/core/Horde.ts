@@ -18,7 +18,9 @@ export class Horde<T extends object> {
         this._trackIndices = true;
         for (let i = 0; i < this._items.length; i++) {
             const item = this._items[i];
-            if (item !== null) {this._indexMap.set(item, i);}
+            if (item !== null) {
+                this._indexMap.set(item, i);
+            }
         }
     }
 
@@ -33,7 +35,9 @@ export class Horde<T extends object> {
      */
     link(o: T): number {
         const n = this._items.push(o) - 1;
-        if (this._trackIndices) {this._indexMap.set(o, n);}
+        if (this._trackIndices) {
+            this._indexMap.set(o, n);
+        }
         return n;
     }
 
@@ -55,7 +59,9 @@ export class Horde<T extends object> {
         } else {
             const last = this._items.pop()!;
             this._items[n] = last;
-            if (this._trackIndices && last !== null) {this._indexMap.set(last, n);}
+            if (this._trackIndices && last !== null) {
+                this._indexMap.set(last, n);
+            }
         }
     }
 
@@ -77,7 +83,9 @@ export class Horde<T extends object> {
     find(o: T): number {
         if (this._trackIndices) {
             const n = this.getItemIndex(o);
-            if (n >= 0) {return n;}
+            if (n >= 0) {
+                return n;
+            }
         }
         return this._items.findIndex((item) => item === o);
     }

@@ -6,7 +6,7 @@ import { Fairy } from '../engine/Fairy.js';
 /** Ticks each animation frame is held. */
 const ANIM_TICK_DURATION = 4;
 /** Number of frames in the explosion animation. */
-const ANIM_FRAME_COUNT   = 3;
+const ANIM_FRAME_COUNT = 3;
 
 /**
  * One-shot explosion effect spawned when a bullet hits a player.
@@ -29,10 +29,7 @@ export class WDBulletExplosion extends Fairy {
         this.vReference.set(8, 8);
 
         // Tangibility mask 0: never matches anything
-        this.setBoundingShape(
-            new FairyCollisionRect(new Vector2D(0, 0), new Vector2D(0, 0)),
-            0
-        );
+        this.setBoundingShape(new FairyCollisionRect(new Vector2D(0, 0), new Vector2D(0, 0)), 0);
 
         // 3-frame explosion: tile 38 = row 1 col 6 → xSrc=0, ySrc=16, frameStart=6
         const anim = new FairyAnimation();

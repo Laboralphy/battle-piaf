@@ -6,7 +6,7 @@ import { Fairy } from '../engine/Fairy.js';
 /** Ticks each animation frame is held. */
 const ANIM_TICK_DURATION = 4;
 /** Number of frames in the explosion animation. */
-const ANIM_FRAME_COUNT   = 5;
+const ANIM_FRAME_COUNT = 5;
 
 /**
  * One-shot explosion effect spawned when a missile hits a player.
@@ -29,10 +29,7 @@ export class WDExplosion extends Fairy {
         this.vReference.set(16, 16);
 
         // Tangibility mask 0: never matches anything
-        this.setBoundingShape(
-            new FairyCollisionRect(new Vector2D(0, 0), new Vector2D(0, 0)),
-            0
-        );
+        this.setBoundingShape(new FairyCollisionRect(new Vector2D(0, 0), new Vector2D(0, 0)), 0);
 
         // 5-frame explosion starting at x=192 (frame 6 at 32px stride), y=0
         const anim = new FairyAnimation();

@@ -80,24 +80,112 @@ html, body {
   image-rendering: pixelated;
 }
 
-/* ── Score & controls ────────────────────────────────────────────────────── */
+/* ── Player HUD frames ───────────────────────────────────────────────────── */
 
-#score {
-  color: #000;
-  font-family: monospace;
-  font-size: clamp(12px, 2vw, 20px);
-  text-align: center;
+.player-frame {
+  position: fixed;
+  top: 8px;
+  width: clamp(160px, 13vw, 220px);
+  background: rgba(10, 10, 20, 0.82);
+  border-radius: 6px;
+  overflow: hidden;
+  font-family: '10 Pixel', monospace;
+  font-size: clamp(12px, 1.1vw, 16px);
+  color: #ddd;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
 }
 
-#controls[data-active="true"] {
-  display: block;
-  position: fixed;
-  left: 8px;
-  top: 8px;
-  padding: 6px 8px;
-  background: rgba(187, 187, 187, 0.85);
-  font-family: monospace;
-  font-size: clamp(10px, 1.2vw, 13px);
-  line-height: 1.5;
-  border-radius: 4px;
+.pf-left  { left:  8px; }
+.pf-right { right: 8px; }
+
+/* Coloured title bar */
+.pf-header {
+  display: flex;
+  align-items: center;
+  padding: 4px 10px;
+  font-size: clamp(13px, 1.2vw, 17px);
+  font-weight: bold;
+  letter-spacing: 2px;
+}
+
+.pf-blue { background: #1a3a9e; color: #9dc4ff; }
+.pf-red  { background: #8e1a1a; color: #ffaaaa; }
+
+.pf-label { flex: 1; }
+
+/* Avatar — full frame width, square */
+.pf-avatar {
+  width: 100%;
+  aspect-ratio: 1;
+  background: rgba(255, 255, 255, 0.06);
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.15);
+  image-rendering: pixelated;
+}
+
+.pf-avatar > img {
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    display: block;
+}
+
+.pf-avatar#avatar-0 > img {
+    filter: sepia(1) hue-rotate(180deg) saturate(3);
+}
+
+.pf-avatar#avatar-1 > img {
+    filter: sepia(1) hue-rotate(320deg) saturate(3);
+    transform: scale(-1, 1);
+}
+
+/* Stats block below avatar */
+.pf-info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 7px 10px 5px;
+}
+
+/* HP bar */
+.pf-hp-track {
+  width: 100%;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.pf-hp-fill {
+  height: 100%;
+  width: 100%;                          /* JS updates this */
+  background: linear-gradient(90deg, #2ecc40, #a8e63d);
+  border-radius: 5px;
+  transition: width 0.15s ease, background 0.3s ease;
+}
+
+/* Turns yellow below 50 %, red below 25 % — set via JS or CSS custom property */
+.pf-hp-fill[data-low="medium"] { background: linear-gradient(90deg, #e6a817, #f5c842); }
+.pf-hp-fill[data-low="danger"] { background: linear-gradient(90deg, #c0392b, #e74c3c); }
+
+.pf-score {
+  color: #bbb;
+  white-space: nowrap;
+}
+
+.pf-weapon {
+  color: #f5c842;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Controls line */
+.pf-keys {
+  padding: 5px 10px 7px;
+  font-size: clamp(10px, 0.9vw, 13px);
+  color: #777;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  white-space: nowrap;
 }

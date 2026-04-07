@@ -59,6 +59,8 @@ export class WDGame extends FairyEngine {
 
     /** DOM elements for the per-player score display. */
     private _scoreEls: [HTMLElement | null, HTMLElement | null] = [null, null];
+    private _hpBarEls: [HTMLElement | null, HTMLElement | null] = [null, null];
+
     /** Sound manager for jump, shoot, and hit effects. */
     private _sounds = new SoundManager();
 
@@ -93,6 +95,7 @@ export class WDGame extends FairyEngine {
         const levelData = LEVELS[0];
         this._buildLevel(levelData);
         this._scoreEls = [document.getElementById('score_0'), document.getElementById('score_1')];
+        this._hpBarEls = [document.getElementById('hp-bar-0'), document.getElementById('hp-bar-1')];
 
         for (let i = 0; i < 2; i++) {
             const p = this.createFairy(this._sprites, 'spr_pl', new WDPlayer(i)) as WDPlayer;
@@ -108,6 +111,17 @@ export class WDGame extends FairyEngine {
                 new Observer(this, (sender: Fairy, flight: FairyFlight) =>
                     this._playerFairyCollision(sender as WDPlayer, flight as WDPlayerFlight)
                 )
+            );
+            p.oObservatory.attach(
+                'damaged',
+                new Observer(this, (sender: Fairy, { damage, damagedBy }) => {
+                    this._sounds.play('hurt');
+                    const oDamager = damagedBy.oOwner;
+                    oDamager.nScore += damage;
+                    const oVictim = sender as WDPlayer;
+                    const hp = oVictim.state.hitpoints;
+                    this.setViewVariable('hp' + oVictim.nCode, hp);
+                })
             );
             this._players[i] = p;
         }
@@ -138,10 +152,10 @@ export class WDGame extends FairyEngine {
                     roll < 0.33
                         ? Weapon.WEAPON_BULLET
                         : roll < 0.66
-                        ? Weapon.WEAPON_MISSILE
-                        : Weapon.WEAPON_GRENADE;
+                          ? Weapon.WEAPON_MISSILE
+                          : Weapon.WEAPON_GRENADE;
                 const enemy = this._players[1 - player.nCode];
-                let projectile: Fairy;
+                let projectile: WDFire;
                 if (player.selectedWeapon === Weapon.WEAPON_BULLET) {
                     projectile = this.createFairy(this._sprites, 'spr_fire', new WDBullet(player));
                 } else if (player.selectedWeapon === Weapon.WEAPON_MISSILE) {
@@ -231,11 +245,11 @@ export class WDGame extends FairyEngine {
             // This prevents the bottom probe from landing inside the floor tile while
             // falling, which would cause a false horizontal push on every landing.
             const bottomOffset = p2.y - flight.vNewPosition.y; // v2.y offset (= 0)
-            const topOffset    = p1.y - flight.vNewPosition.y; // v1.y offset (= -31)
-            const wallTileY1   = Math.floor(flight.vPosition.y + bottomOffset - 1) >> 5;
-            const wallTileY2   = Math.floor(flight.vPosition.y + topOffset    + 1) >> 5;
-            const rightOffset  = p2.x - flight.vNewPosition.x; // v2.x offset of right edge
-            const leftOffset   = p1.x - flight.vNewPosition.x; // v1.x offset of left edge
+            const topOffset = p1.y - flight.vNewPosition.y; // v1.y offset (= -31)
+            const wallTileY1 = Math.floor(flight.vPosition.y + bottomOffset - 1) >> 5;
+            const wallTileY2 = Math.floor(flight.vPosition.y + topOffset + 1) >> 5;
+            const rightOffset = p2.x - flight.vNewPosition.x; // v2.x offset of right edge
+            const leftOffset = p1.x - flight.vNewPosition.x; // v1.x offset of left edge
 
             if (flight.vNewPosition.x > flight.vPosition.x) {
                 const tileX = Math.floor(p2.x + 1) >> 5;
@@ -264,22 +278,27 @@ export class WDGame extends FairyEngine {
         player.bOnFloor = false;
         if (flight.vNewPosition.y > flight.vPosition.y) {
             const [p1, p2] = rect.getPoints();
-            const tileX1  = Math.floor(p1.x) >> 5;
-            const tileX2  = Math.floor(p2.x) >> 5;
-            const tileY   = Math.floor(p2.y + 1) >> 5;
-            const subY    = Math.floor(p2.y + 1) % 32;
+            const tileX1 = Math.floor(p1.x) >> 5;
+            const tileX2 = Math.floor(p2.x) >> 5;
+            const tileY = Math.floor(p2.y + 1) >> 5;
+            const subY = Math.floor(p2.y + 1) % 32;
             // Row just above the floor tile — probes whose column contains a solid tile
             // here are inside a wall and must not trigger floor detection.
             const bodyRow = tileY - 1;
 
             if (subY < 16) {
-                const code1 = this._land.getTileCode(tileX1, bodyRow) < 2
-                    ? this._land.getTileCode(tileX1, tileY) : 0;
-                const code2 = this._land.getTileCode(tileX2, bodyRow) < 2
-                    ? this._land.getTileCode(tileX2, tileY) : 0;
+                const code1 =
+                    this._land.getTileCode(tileX1, bodyRow) < 2
+                        ? this._land.getTileCode(tileX1, tileY)
+                        : 0;
+                const code2 =
+                    this._land.getTileCode(tileX2, bodyRow) < 2
+                        ? this._land.getTileCode(tileX2, tileY)
+                        : 0;
                 const maxCode = Math.max(code1, code2);
                 if (maxCode > 0) {
-                    const bMustStabilize = maxCode === 2 || (maxCode === 1 && player.nWantDown === 0);
+                    const bMustStabilize =
+                        maxCode === 2 || (maxCode === 1 && player.nWantDown === 0);
                     if (bMustStabilize) {
                         // p2.y (bottom edge, v2.y=0) snapped 1px above tile top
                         flight.vNewPosition.y = (tileY << 5) - 1;
@@ -298,7 +317,7 @@ export class WDGame extends FairyEngine {
             const [p1, p2] = rect.getPoints();
             const tileX1 = Math.floor(p1.x) >> 5;
             const tileX2 = Math.floor(p2.x) >> 5;
-            const tileY  = Math.floor(p1.y) >> 5; // top edge (head)
+            const tileY = Math.floor(p1.y) >> 5; // top edge (head)
 
             if (
                 this._land.getTileCode(tileX1, tileY) >= 2 ||
@@ -335,10 +354,14 @@ export class WDGame extends FairyEngine {
                 flight.vNewSpeed.set(diff);
             } else if (other instanceof WDFire) {
                 // Missile hit: award score, apply shock, spawn explosion, destroy missile
-                other.oOwner.nScore++;
                 flight.vShock.set(other.oFlight.vSpeed);
                 flight.vShock.y -= 2;
-                this._explodeProjectile(other, other.oFlight.vPosition.x, other.oFlight.vPosition.y);
+                player.hitBy(other);
+                this._explodeProjectile(
+                    other,
+                    other.oFlight.vPosition.x,
+                    other.oFlight.vPosition.y
+                );
             }
         }
     }
@@ -347,9 +370,7 @@ export class WDGame extends FairyEngine {
 
     /** Spawn the appropriate explosion, play its sound, and mark the projectile dead. */
     private _explodeProjectile(fire: WDFire, x: number, y: number): void {
-        const ex = fire instanceof WDBullet
-            ? new WDBulletExplosion(x, y)
-            : new WDExplosion(x, y);
+        const ex = fire instanceof WDBullet ? new WDBulletExplosion(x, y) : new WDExplosion(x, y);
         this.createFairy(this._sprites, 'spr_fire', ex);
         fire.bDead = true;
         this._sounds.play(fire.soundOnExplosion);
@@ -361,7 +382,9 @@ export class WDGame extends FairyEngine {
      * explodes the projectile if it enters a fully solid tile (#, code ≥ 2).
      */
     private _checkProjectileLandCollision(fire: WDFire): void {
-        if (fire.bDead) {return;}
+        if (fire.bDead) {
+            return;
+        }
         const rect = fire.oBoundingShape as FairyCollisionRect;
         const [p1, p2] = rect.getPoints();
         const cx = (p1.x + p2.x) / 2;
@@ -386,6 +409,9 @@ export class WDGame extends FairyEngine {
             for (let i = 0; i < 2; i++) {
                 if (this._scoreEls[i]) {
                     this._scoreEls[i]!.textContent = String(view[`score${i}`]);
+                }
+                if (this._hpBarEls[i]) {
+                    this._hpBarEls[i]!.style.width = String(view[`hp${i}`]) + '%';
                 }
             }
         }

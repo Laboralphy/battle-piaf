@@ -127,7 +127,9 @@ export class FairyAnimation {
      * Has no effect when `bOver` is true or `nFrameIncrement` is 0.
      */
     proceed(): void {
-        if (this.bOver || this.nFrameIncrement === 0) {return;}
+        if (this.bOver || this.nFrameIncrement === 0) {
+            return;
+        }
         this.nFrameElapsed += this.nFrameIncrement;
         const prevFrame = this.nFrameIndex;
         while (this.nFrameElapsed >= this.nFrameDuration) {

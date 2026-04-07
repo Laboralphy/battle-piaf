@@ -47,7 +47,9 @@ export class Fairies {
             }
             hasDeadFairies ||= fairy.bDead;
         }
-        if (hasDeadFairies) {this._removeDeadFairies();}
+        if (hasDeadFairies) {
+            this._removeDeadFairies();
+        }
     }
 
     /** Draw all fairies in insertion order. */

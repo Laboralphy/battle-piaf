@@ -2,8 +2,11 @@ import { Vector2D } from '../core/Vector2D.js';
 import { FairyAnimation } from '../engine/FairyAnimation.js';
 import { FairyCollisionRect } from '../engine/FairyCollision.js';
 import { FairyInputState } from '../engine/FairyInputState.js';
-import { Fairy } from '../engine/Fairy.js';
+import { Fairy, FairyBaseEvents } from '../engine/Fairy.js';
+import { FairyFlight } from '../engine/FairyFlight.js';
 import { WDPlayerFlight } from './WDPlayerFlight.js';
+import { WDFire } from './WDFire.js';
+import { PlayerState } from './state/PlayerState.js';
 
 /** Weapons a player can fire. */
 export const enum Weapon {
@@ -30,6 +33,15 @@ export interface PlayerKeys {
 }
 
 /**
+ * Event map for the player sprite.
+ * Extends `FairyBaseEvents` with a `'damaged'` event carrying the amount dealt.
+ */
+export type WDPlayerEvents = FairyBaseEvents & {
+    /** Emitted when the player is hit by a projectile, after hitpoints are updated. */
+    damaged: { damage: number; damagedBy: WDFire };
+};
+
+/**
  * A playable character sprite.
  * Reads input each tick via `updateState` and exposes state flags that the game
  * loop (`WDGame`) reads to trigger jumps, firing, etc.
@@ -41,7 +53,7 @@ export interface PlayerKeys {
  * Tangibility mask: player 0 = 5 (101b), player 1 = 6 (110b).
  * This ensures each player is hit by the opponent's projectiles but not their own.
  */
-export class WDPlayer extends Fairy {
+export class WDPlayer extends Fairy<WDPlayerEvents> {
     /** Player index: 0 = blue player, 1 = red player. */
     readonly nCode: number;
 
@@ -68,6 +80,11 @@ export class WDPlayer extends Fairy {
     /** Weapon selected for the next shot; set by WDGame before spawning a projectile. */
     selectedWeapon: Weapon = Weapon.WEAPON_MISSILE;
 
+    private _state: PlayerState = {
+        hitpoints: 100,
+        power: 1,
+        defense: 1,
+    };
 
     constructor(nCode: number) {
         super();
@@ -120,8 +137,12 @@ export class WDPlayer extends Fairy {
         const keys = this.getData('keys') as PlayerKeys;
         this.nDir = 0;
 
-        if (input.getKeyState(keys.right)) {this.nDir++;}
-        if (input.getKeyState(keys.left))  {this.nDir--;}
+        if (input.getKeyState(keys.right)) {
+            this.nDir++;
+        }
+        if (input.getKeyState(keys.left)) {
+            this.nDir--;
+        }
 
         if (input.getKeyState(keys.up)) {
             if (this.bOnFloor) {
@@ -156,5 +177,18 @@ export class WDPlayer extends Fairy {
             this.nFace = 1;
             this.playAnimation(0);
         }
+    }
+
+    get state() {
+        return this._state;
+    }
+
+    hitBy(wdf: WDFire) {
+        const damage = Math.ceil(wdf.state.damage * wdf.oOwner.state.power * this._state.defense);
+        this._state.hitpoints = Math.max(0, this._state.hitpoints - damage);
+        this.oObservatory.notify(this, 'damaged', {
+            damage,
+            damagedBy: wdf
+        });
     }
 }

@@ -40,7 +40,9 @@ export class FairySequencer {
      */
     setState(name: string): void {
         const handler = this._states.get(name);
-        if (!handler) {throw new Error(`Sequencer: unknown state "${name}"`);}
+        if (!handler) {
+            throw new Error(`Sequencer: unknown state "${name}"`);
+        }
         this._current = handler;
     }
 

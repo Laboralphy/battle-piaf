@@ -1,8 +1,11 @@
+# Artifact directories
 dist/*
 public/dist/*
 
+# Environment variables
 .env
 
+# Packet managers
 node_modules/*
 npm-debug.log*
 yarn-debug.log*
@@ -10,5 +13,9 @@ yarn-error.log*
 .pnp
 .pnp.js
 
+# IDE Settings
 .vscode/*
 .idea/*
+
+# WSL File of whatever the hell is it...
+*.Identifier

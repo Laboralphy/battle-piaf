@@ -24,14 +24,18 @@ export class WDPlayerFlight extends FairyFlight {
         super.proceed();
 
         // Cap downward speed
-        if (this.vNewSpeed.y > 5) {this.vNewSpeed.y = 5;}
+        if (this.vNewSpeed.y > 5) {
+            this.vNewSpeed.y = 5;
+        }
 
         this._applyShock();
     }
 
     /** Apply `vShock` to the candidate position and decay it toward zero. */
     private _applyShock(): void {
-        if (this.vShock.x === 0 && this.vShock.y === 0) {return;}
+        if (this.vShock.x === 0 && this.vShock.y === 0) {
+            return;
+        }
         this.vNewPosition.add(this.vShock);
         const d = this.vShock.distance() / 1.3;
         this.vShock.normalize().mul(d);

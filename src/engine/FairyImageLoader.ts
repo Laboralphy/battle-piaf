@@ -37,7 +37,9 @@ export class FairyImageLoader {
      */
     checkComplete(): boolean {
         for (const img of this._images.values()) {
-            if (!img.complete) {return (this._complete = false);}
+            if (!img.complete) {
+                return (this._complete = false);
+            }
         }
         return (this._complete = true);
     }
@@ -48,7 +50,9 @@ export class FairyImageLoader {
      * scanning on every tick; re-checks if the cache says incomplete.
      */
     complete(): boolean {
-        if (!this._complete) {this.checkComplete();}
+        if (!this._complete) {
+            this.checkComplete();
+        }
         return this._complete;
     }
 }

@@ -5,6 +5,7 @@ import { FairyFlight } from '../engine/FairyFlight.js';
 import { WDPlayer } from './WDPlayer.js';
 import { WDFire } from './WDFire.js';
 import type { SoundId } from './SoundManager.js';
+import WEAPON_DATA from '../data/weapons.json';
 
 /** Launch angle from horizontal (radians). */
 const GRENADE_ANGLE = Math.PI / 4;
@@ -38,11 +39,13 @@ class WDGrenadeFlight extends FairyFlight {
  * - Tile 8 (x=128, y=0): left-facing grenade.
  */
 export class WDGrenade extends WDFire {
-    readonly soundOnFire: SoundId      = 'shoot-grenade';
+    readonly soundOnFire: SoundId = 'shoot-grenade';
     readonly soundOnExplosion: SoundId = 'explosion-missile';
 
     constructor(owner: WDPlayer) {
         super(owner);
+
+        this.state.damage = WEAPON_DATA.grenade.damage
 
         this.setSize(16, 16);
         this.setScale(1);

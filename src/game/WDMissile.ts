@@ -4,6 +4,7 @@ import { FairyCollisionRect } from '../engine/FairyCollision.js';
 import { WDPlayer } from './WDPlayer.js';
 import { WDFire } from './WDFire.js';
 import type { SoundId } from './SoundManager.js';
+import WEAPON_DATA from "../data/weapons.json";
 
 /** Maximum vertical homing speed in pixels per tick. */
 const MAX_VSPEED = 2.5;
@@ -39,6 +40,9 @@ export class WDMissile extends WDFire {
 
     constructor(owner: WDPlayer, target: WDPlayer, spawnExhaust: (x: number, y: number) => void) {
         super(owner);
+
+        this.state.damage = WEAPON_DATA.missile.damage
+
         this._target = target;
         this._spawnExhaust = spawnExhaust;
 
@@ -83,12 +87,13 @@ export class WDMissile extends WDFire {
      */
     override proceed(): void {
         // Nudge vertical speed toward the vertical center of the target sprite
-        const targetCenterY = this._target.oFlight.vPosition.y - this._target.vReference.y + this._target.nHeight / 2;
+        const targetCenterY =
+            this._target.oFlight.vPosition.y - this._target.vReference.y + this._target.nHeight / 2;
         const missileCenterY = this.oFlight.vPosition.y + this.nHeight / 2;
         const dy = targetCenterY - missileCenterY;
         this.oFlight.vSpeed.y = this.oFlight.vSpeed.y * 0.9 + Math.sign(dy) * VACCEL;
-        if (this.oFlight.vSpeed.y >  MAX_VSPEED) {
-            this.oFlight.vSpeed.y =  MAX_VSPEED;
+        if (this.oFlight.vSpeed.y > MAX_VSPEED) {
+            this.oFlight.vSpeed.y = MAX_VSPEED;
         }
         if (this.oFlight.vSpeed.y < -MAX_VSPEED) {
             this.oFlight.vSpeed.y = -MAX_VSPEED;

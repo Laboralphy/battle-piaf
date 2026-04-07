@@ -11,6 +11,7 @@ const SOUND_SRCS: Record<string, string[][]> = {
     hit: [['ogg/hit-0.ogg', 'mp3/hit-0.mp3']],
     'explosion-missile': [['ogg/hit-1.ogg', 'mp3/hit-1.mp3']],
     'shoot-grenade': [['ogg/shoot-4.ogg', 'mp3/shoot-4.mp3']],
+    hurt: [['ogg/hurt-0.ogg', 'mp3/hurt-0.mp3']],
 };
 
 /** The set of named sounds available in the game. */

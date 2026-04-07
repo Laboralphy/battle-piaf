@@ -96,7 +96,9 @@ export class FairyLevelBuilder {
                 const c2 = row[x * 2 + 1];
                 const code = c1 + c2;
 
-                if (c1 === ' ') {c1 = '0';}
+                if (c1 === ' ') {
+                    c1 = '0';
+                }
                 const n1 = FairyLevelBuilder.CODES.indexOf(c1);
                 const n2 = FairyLevelBuilder.META_CODES.indexOf(c2) * this.nMetaMultiplier;
 

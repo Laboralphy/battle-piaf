@@ -87,8 +87,12 @@ export class FairyCollisionRect extends FairyCollisionShape {
 
     /** Test AABB overlap, taking tangibility masks into account. */
     hit(other: FairyCollisionShape): boolean {
-        if ((other.tangibilityMask & this.tangibilityMask) === 0) {return false;}
-        if (other instanceof FairyCollisionRect) {return this.hitRect(other);}
+        if ((other.tangibilityMask & this.tangibilityMask) === 0) {
+            return false;
+        }
+        if (other instanceof FairyCollisionRect) {
+            return this.hitRect(other);
+        }
         return false;
     }
 
@@ -133,7 +137,9 @@ export class FairyCollisionSector {
     /** Remove `obj` from this sector. */
     unregisterObject(obj: ICollidable): void {
         const i = this.aObjects.find(obj);
-        if (i >= 0) {this.aObjects.unlink(i);}
+        if (i >= 0) {
+            this.aObjects.unlink(i);
+        }
     }
 
     /** Return all objects in this sector that overlap with `subject`. */
@@ -184,7 +190,9 @@ export class FairyCollider {
     private getSectorAt(x: number, y: number): FairyCollisionSector | null {
         const col = Math.floor(x / this._sectorW);
         const row = Math.floor(y / this._sectorH);
-        if (row < 0 || col < 0 || row >= this._rows || col >= this._cols) {return null;}
+        if (row < 0 || col < 0 || row >= this._rows || col >= this._cols) {
+            return null;
+        }
         return this._grid[row][col];
     }
 
@@ -204,11 +212,15 @@ export class FairyCollider {
     registerObject(obj: ICollidable): void {
         const sector = this.getSectorAt(obj.oFlight.vNewPosition.x, obj.oFlight.vNewPosition.y);
         if (obj._collisionSector !== null) {
-            if (obj._collisionSector === sector) {return;}
+            if (obj._collisionSector === sector) {
+                return;
+            }
             this.unregisterObject(obj);
         }
         obj._collisionSector = sector;
-        if (sector) {sector.registerObject(obj);}
+        if (sector) {
+            sector.registerObject(obj);
+        }
     }
 
     /**
@@ -222,7 +234,9 @@ export class FairyCollider {
         for (let dy = -this._sectorH; dy <= this._sectorH; dy += this._sectorH) {
             for (let dx = -this._sectorW; dx <= this._sectorW; dx += this._sectorW) {
                 const sector = this.getSectorAt(pos.x + dx, pos.y + dy);
-                if (!sector) {continue;}
+                if (!sector) {
+                    continue;
+                }
                 const n = sector.aObjects.getCount();
                 for (let i = 0; i < n; i++) {
                     const candidate = sector.aObjects.get(i);

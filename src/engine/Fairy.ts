@@ -11,13 +11,28 @@ import {
 } from './FairyCollision.js';
 
 /**
+ * Minimum event map that every `Fairy` must support.
+ * Subclasses extend this with intersection types to add their own events.
+ */
+export type FairyBaseEvents = {
+    /** Fired each tick after physics integration, before `postProceed`. */
+    move: FairyFlight;
+    /** Fired once when `bDead` becomes true. */
+    dead: FairyFlight;
+};
+
+/**
  * Base class for all sprites (players, projectiles, effects).
  * Owns physics (`oFlight`), animation, collision, and a generic data store.
  * Each tick, `proceed()` updates physics, notifies 'move' observers (for collision
  * response), commits physics, and advances the animation. When `bMortal` is true,
  * `nTime` counts down and `bDead` is set to true when it reaches zero.
+ *
+ * `TEvents` extends `FairyBaseEvents` so that subclasses can expose additional
+ * typed events through `oObservatory` without losing the base 'move'/'dead' events.
+ * The internal `_notifyBase` helper keeps the base-class `proceed()` type-safe.
  */
-export class Fairy implements ICollidable {
+export class Fairy<TEvents extends FairyBaseEvents = FairyBaseEvents> implements ICollidable {
     /** Physics state: position, speed, acceleration, and their next-tick candidates. */
     oFlight: FairyFlight = new FairyFlight();
     /** Currently playing animation, or null if none. */
@@ -31,10 +46,11 @@ export class Fairy implements ICollidable {
     /** The bounding shape used for collision detection. */
     oBoundingShape!: FairyCollisionShape;
     /**
-     * Event hub. Observers listen for 'move' (fired each tick after physics,
-     * before postProceed) and 'dead' (fired when bDead becomes true).
+     * Typed event hub.
+     * `TEvents` maps event names to their payload types; use `attach` and `notify`
+     * with the correct key to get full type safety per event.
      */
-    readonly oObservatory = new Observatory<Fairy, FairyFlight>();
+    readonly oObservatory = new Observatory<Fairy, TEvents>();
     /** Arbitrary key/value store for game-specific per-sprite data. */
     readonly oData: Record<string, unknown> = {};
 
@@ -174,13 +190,15 @@ export class Fairy implements ICollidable {
      * Subclasses can override to add custom per-tick logic.
      */
     proceed(): void {
-        if (!this.bActive) {return;}
+        if (!this.bActive) {
+            return;
+        }
 
         this.oFlight.proceed();
         if (this.oCollider) {
             this.oCollider.registerObject(this);
         }
-        this.oObservatory.notify(this, 'move', this.oFlight);
+        this._notifyBase('move', this.oFlight);
         this.oFlight.postProceed();
 
         this.oAnimation?.proceed();
@@ -189,7 +207,7 @@ export class Fairy implements ICollidable {
             this.bDead ||= --this.nTime <= 0;
         }
         if (this.bDead) {
-            this.oObservatory.notify(this, 'dead', this.oFlight);
+            this._notifyBase('dead', this.oFlight);
         }
     }
 
@@ -205,7 +223,9 @@ export class Fairy implements ICollidable {
      * No-op if the sprite is invisible or any required resource is missing.
      */
     render(): void {
-        if (!this.bVisible || !this.oImage || !this.oContext || !this.oAnimation) {return;}
+        if (!this.bVisible || !this.oImage || !this.oContext || !this.oAnimation) {
+            return;
+        }
         const sx = Math.floor(
             (this.oAnimation.nFrameIndex + this.oAnimation.nFrameStart) * this.nWidth +
                 this.oAnimation.xSrc
@@ -227,5 +247,23 @@ export class Fairy implements ICollidable {
             const [v1, v2] = (this.oBoundingShape as FairyCollisionRect).getPoints();
             this.oContext.strokeRect(v1.x, v1.y, v2.x - v1.x - 1, v2.y - v1.y - 1);
         }
+    }
+
+    /**
+     * Notify a base event ('move' or 'dead') whose payload is always `FairyFlight`.
+     * Uses a cast because TypeScript cannot prove `TEvents[K] = FairyFlight` for a
+     * generic `TEvents extends FairyBaseEvents`, even though the constraint guarantees it.
+     * This is the only place the cast appears; all subclass events go through `oObservatory`
+     * directly and are fully type-checked.
+     */
+    protected _notifyBase<K extends keyof FairyBaseEvents>(
+        event: K,
+        data: FairyBaseEvents[K]
+    ): void {
+        (this.oObservatory as unknown as Observatory<Fairy, FairyBaseEvents>).notify(
+            this,
+            event,
+            data
+        );
     }
 }

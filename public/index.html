@@ -7,32 +7,46 @@
     <link rel="stylesheet" href="assets/styles/fonts/10Pixel/10Pixel.css"/>
   </head>
   <body>
-    <div id="controls" data-active="false">
-      <pre>controls:
-<span style="color:blue">blue player:</span>
-  left:  S    right: F
-  jump:  E    shoot: D
-<span style="color:#a00">red player:</span>
-  left:  Num4  right: Num6
-  jump:  Num8  shoot: Num5</pre>
-      <small>Code, graphismes: Ralphy</small>
-      <div id="score">
-        <table>
-          <tr>
-            <td><span style="color:#00f">BLUE: </span></td>
-            <td><span id="score_0">0</span></td>
-          </tr>
-          <tr>
-            <td><span style="color:#aa0000">RED: </span></td>
-            <td><span id="score_1">0</span></td>
-          </tr>
-        </table>
+
+    <!-- ── Player 0 HUD — top-left ───────────────────────────────────────── -->
+    <div class="player-frame pf-left" id="player-frame-0" data-active="true">
+      <div class="pf-header pf-blue">
+        <span class="pf-label">BLUE</span>
       </div>
+      <div class="pf-avatar" id="avatar-0">
+          <img src="assets/images/avatars/avatar-010.gif">
+      </div>
+      <div class="pf-info">
+        <div class="pf-hp-track">
+          <div class="pf-hp-fill" id="hp-bar-0"></div>
+        </div>
+        <div class="pf-score">Score&nbsp;<span id="score_0">0</span></div>
+        <div class="pf-weapon" id="weapon-0">—</div>
+      </div>
+      <div class="pf-keys">Q ◀&nbsp;&nbsp;D ▶&nbsp;&nbsp;Z ▲&nbsp;&nbsp;S ▼&nbsp;&nbsp;Space 🔫</div>
     </div>
 
-    <div id="layout">
-      <div id="menu" data-active="true">
+    <!-- ── Player 1 HUD — top-right ──────────────────────────────────────── -->
+    <div class="player-frame pf-right" id="player-frame-1" data-active="true">
+      <div class="pf-header pf-red">
+        <span class="pf-label">RED</span>
       </div>
+      <div class="pf-avatar" id="avatar-1">
+          <img src="assets/images/avatars/avatar-003.gif">
+      </div>
+      <div class="pf-info">
+        <div class="pf-hp-track">
+          <div class="pf-hp-fill" id="hp-bar-1"></div>
+        </div>
+        <div class="pf-score">Score&nbsp;<span id="score_1">0</span></div>
+        <div class="pf-weapon" id="weapon-1">—</div>
+      </div>
+      <div class="pf-keys">4 ◀&nbsp;&nbsp;6 ▶&nbsp;&nbsp;8 ▲&nbsp;&nbsp;Enter 🔫</div>
+    </div>
+
+    <!-- ── Game layout ────────────────────────────────────────────────────── -->
+    <div id="layout">
+      <div id="menu" data-active="true"></div>
       <canvas id="game-screen" data-active="false" width="640" height="480"></canvas>
     </div>
 

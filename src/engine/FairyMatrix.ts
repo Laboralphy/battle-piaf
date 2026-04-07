@@ -167,7 +167,9 @@ export class FairyMatrix {
      * If the map is dirty (`_invalid`), all tiles are redrawn first.
      */
     render(): void {
-        if (this._invalid) {this._drawAllTiles();}
+        if (this._invalid) {
+            this._drawAllTiles();
+        }
         this._renderCtx!.drawImage(this._canvas, this._xLook, this._yLook);
     }
 

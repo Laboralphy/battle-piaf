@@ -13,14 +13,6 @@ interface ILayer {
     render(): void;
 }
 
-/**
- * Key/value map written to by `setViewVariable` and read back by `updateView`.
- * The `invalid` flag is set whenever any value changes.
- */
-interface ViewState {
-    invalid: boolean;
-    [key: string]: unknown;
-}
 
 /**
  * Base engine class.  Subclasses override the four state hooks to implement a game.
@@ -62,8 +54,6 @@ export class FairyEngine {
     private _onMouseMove  = (e: MouseEvent) => this._input.setMouseXY(e.clientX, e.clientY);
     private _onMouseDown  = (e: MouseEvent) => { this._input.setMouseButton(e.button, true);  return false; };
     private _onMouseUp    = (e: MouseEvent) => { this._input.setMouseButton(e.button, false); return false; };
-    /** View state for score / HUD variables. See `setViewVariable` / `updateView`. */
-    private _view: ViewState = { invalid: true };
 
     constructor() {
         this._seq.addState('stateEngineInitializing', () => this._doEngineInit());
@@ -228,29 +218,6 @@ export class FairyEngine {
      */
     loadImage(src: string, id: string): Promise<HTMLImageElement> {
         return this._images.load(id, src);
-    }
-
-    // ── View / score display helper ──────────────────────────────────────────
-
-    /**
-     * Record a HUD variable.  Sets the `invalid` flag if the value has changed,
-     * allowing `updateView` callers to skip DOM updates when nothing has changed.
-     */
-    protected setViewVariable(key: string, value: unknown): void {
-        if (key in this._view && this._view[key] === value) {
-            return;
-        }
-        this._view[key] = value;
-        this._view.invalid = true;
-    }
-
-    /**
-     * Mark the view as up-to-date and return the current state.
-     * Callers should check `view.invalid` before touching the DOM.
-     */
-    protected updateView(): ViewState {
-        this._view.invalid = false;
-        return this._view;
     }
 
     // ── Main loop (requestAnimationFrame) ────────────────────────────────────

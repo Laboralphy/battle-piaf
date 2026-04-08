@@ -7,6 +7,7 @@ import { FairyFlight } from '../engine/FairyFlight.js';
 import { WDPlayerFlight } from './WDPlayerFlight.js';
 import { WDFire } from './WDFire.js';
 import { PlayerState } from './state/PlayerState.js';
+import { Store } from '../store';
 
 /** Weapons a player can fire. */
 export const enum Weapon {
@@ -75,16 +76,20 @@ export class WDPlayer extends Fairy<WDPlayerEvents> {
     readonly fJump = 6.9;
     /** Horizontal speed applied when moving left or right. */
     readonly fSpeed = 3;
-    /** Accumulated score: incremented each time an enemy projectile hits this player. */
-    nScore = 0;
     /** Weapon selected for the next shot; set by WDGame before spawning a projectile. */
     selectedWeapon: Weapon = Weapon.WEAPON_MISSILE;
 
-    private _state: PlayerState = {
-        hitpoints: 100,
+    readonly store = new Store<PlayerState>({
+        hitPoints: 100,
+        vitality: 100,
         power: 1,
         defense: 1,
-    };
+        score: 0,
+        bulletHitStreak: 0,
+        displayed: false,
+        energy: 100,
+        maxEnergy: 100
+    });
 
     constructor(nCode: number) {
         super();
@@ -179,13 +184,14 @@ export class WDPlayer extends Fairy<WDPlayerEvents> {
         }
     }
 
-    get state() {
-        return this._state;
+    proceed(){
+        super.proceed();
+        this.store.state.energy = Math.min(this.store.state.maxEnergy, this.store.state.energy + 1)
     }
 
     hitBy(wdf: WDFire) {
-        const damage = Math.ceil(wdf.state.damage * wdf.oOwner.state.power * this._state.defense);
-        this._state.hitpoints = Math.max(0, this._state.hitpoints - damage);
+        const damage = Math.ceil(wdf.state.damage * wdf.oOwner.store.state.power * this.store.state.defense);
+        this.store.state.hitPoints = Math.max(0, this.store.state.hitPoints - damage);
         this.oObservatory.notify(this, 'damaged', {
             damage,
             damagedBy: wdf

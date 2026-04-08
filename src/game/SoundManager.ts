@@ -6,12 +6,12 @@ import { Howl } from 'howler';
  */
 const SOUND_SRCS: Record<string, string[][]> = {
     jump: [['ogg/jump-0.ogg', 'mp3/jump-0.mp3']],
-    'shoot-bullet': [['ogg/shoot-0.ogg', 'mp3/shoot-0.mp3']],
-    'shoot-missile': [['ogg/shoot-1.ogg', 'mp3/shoot-1.mp3']],
+    'shoot-bullet': [['ogg/shoot-1.ogg', 'mp3/shoot-1.mp3']],
+    'shoot-missile': [['ogg/missile-0.ogg', 'mp3/missile-0.mp3']],
     hit: [['ogg/hit-0.ogg', 'mp3/hit-0.mp3']],
     'explosion-missile': [['ogg/hit-1.ogg', 'mp3/hit-1.mp3']],
-    'shoot-grenade': [['ogg/shoot-4.ogg', 'mp3/shoot-4.mp3']],
-    hurt: [['ogg/hurt-0.ogg', 'mp3/hurt-0.mp3']],
+    'shoot-grenade': [['ogg/missile-1.ogg', 'mp3/missile-1.mp3']],
+    hurt: [['ogg/impact-1.ogg', 'mp3/impact-1.mp3']],
 };
 
 /** The set of named sounds available in the game. */

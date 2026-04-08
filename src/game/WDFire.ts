@@ -49,6 +49,7 @@ export abstract class WDFire<TEvents extends WDFireEvents = WDFireEvents> extend
         this.nFace = owner.nFace;
         this._state = {
             damage: 0,
+            cost: 0,
         };
     }
 

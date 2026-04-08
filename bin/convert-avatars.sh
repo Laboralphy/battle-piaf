@@ -39,4 +39,6 @@ for src in "${files[@]}"; do
     index=$((index + 1))
 done
 
-echo "Done. Output in $OUT_DIR"
+mv "$OUT_DIR"/*.gif "$PROJECT_DIR"/public/assets/images/avatars/
+
+echo "Done."

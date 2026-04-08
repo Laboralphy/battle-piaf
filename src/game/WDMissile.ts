@@ -42,6 +42,7 @@ export class WDMissile extends WDFire {
         super(owner);
 
         this.state.damage = WEAPON_DATA.missile.damage
+        this.state.cost = WEAPON_DATA.missile.cost
 
         this._target = target;
         this._spawnExhaust = spawnExhaust;

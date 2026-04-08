@@ -1,11 +1,14 @@
 {
     "bullet": {
-        "damage": 8
+        "damage": 8,
+        "cost": 16
     },
     "missile": {
-        "damage": 20
+        "damage": 20,
+        "cost": 50
     },
     "grenade": {
-        "damage": 24
+        "damage": 24,
+        "cost": 50
     }
 }

@@ -229,7 +229,7 @@ export class WDPlayer extends Fairy<WDPlayerEvents> {
         const SHIELD_H = 32;
         const TILE_STRIDE = 16;
         const facingRight = this.nFace === 1;
-        const tileIndex = facingRight ? 22 : 21;
+        const tileIndex = facingRight ? 23 : 22;
         const sx = tileIndex * TILE_STRIDE;
         const playerDestX = Math.floor(this.oFlight.vPosition.x - this.vReference.x);
         const playerDestY = Math.floor(this.oFlight.vPosition.y - this.vReference.y);

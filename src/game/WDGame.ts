@@ -38,6 +38,7 @@ const PLAYER_KEYS = [
         left: FairyKeys.NUMPAD[4],
         right: FairyKeys.NUMPAD[6],
         up: FairyKeys.NUMPAD[8],
+        down: FairyKeys.NUMPAD[2],
         fire: FairyKeys.NUMPAD.ENTER,
     },
 ] as const;
@@ -233,6 +234,7 @@ export class WDGame extends FairyEngine {
      * Freezes their physics, resets their streak, and starts the countdown.
      */
     private _startDeathSequence(player: WDPlayer): void {
+        this._sounds.play('explosion-die');
         this._deathTimers[player.nCode] = DEATH_SEQUENCE_TICKS;
         player.oFlight.vSpeed.set(0, 0);
         player.oFlight.vAccel.set(0, 0);
@@ -553,8 +555,7 @@ export class WDGame extends FairyEngine {
         crate.oObservatory.attach(
             'picked',
             new Observer(this, (_sender, { player }) => {
-                // WDGame receives the pickup here — apply power-up effects in future.
-                console.log(`Player ${player.nCode} picked up a crate`);
+                this._sounds.play('pick');
             })
         );
         this._activeCrate = crate;

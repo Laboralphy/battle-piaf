@@ -6,6 +6,7 @@ OGG_DIR="$(dirname "$0")/../public/assets/sounds/ogg"
 MP3_DIR="$(dirname "$0")/../public/assets/sounds/mp3"
 
 mkdir -p "$OGG_DIR" "$MP3_DIR"
+rm -f "$OGG_DIR"/*.ogg "$MP3_DIR"/*.mp3
 
 shopt -s nullglob
 flac_files=("$FLAC_DIR"/*.flac)

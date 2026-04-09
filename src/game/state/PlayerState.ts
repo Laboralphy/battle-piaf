@@ -8,4 +8,6 @@ export type PlayerState = {
     displayed: boolean;
     energy: number;
     maxEnergy: number;
-}
+    shield: number;
+    shieldTime: number;
+};

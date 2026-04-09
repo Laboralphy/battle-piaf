@@ -130,6 +130,7 @@ export class WDGame extends FairyEngine {
 
         for (let i = 0; i < 2; i++) {
             const p = this.createFairy(this._sprites, 'spr_pl', new WDPlayer(i)) as WDPlayer;
+            p.oFireImage = this._images.get('spr_fire')!;
             p.setData('keys', PLAYER_KEYS[i]);
             p.oObservatory.attach(
                 'move',

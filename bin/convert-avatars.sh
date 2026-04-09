@@ -23,7 +23,7 @@ fi
 index=0
 for src in "${files[@]}"; do
     filename="$(basename "$src")"
-    dst="$OUT_DIR/$(printf 'avatar-%03d.gif' $index)"
+    dst="$OUT_DIR/$(printf 'avatar-%03d.png' $index)"
 
     echo "  $filename  →  $(basename "$dst")"
 
@@ -31,14 +31,14 @@ for src in "${files[@]}"; do
         -gravity center \
         -crop "$(convert "$src" -format "%[fx:min(w,h)]x%[fx:min(w,h)]" info:)+0+0" \
         +repage \
-        -resize 128x128 \
+        -resize 96x96 \
         -colorspace Gray \
         -colors 16 \
-        -dither None \
-        GIF:"$dst"
+        -dither FloydSteinberg \
+        PNG8:"$dst"
     index=$((index + 1))
 done
 
-mv "$OUT_DIR"/*.gif "$PROJECT_DIR"/public/assets/images/avatars/
+mv "$OUT_DIR"/*.png "$PROJECT_DIR"/public/assets/images/avatars/
 
 echo "Done."

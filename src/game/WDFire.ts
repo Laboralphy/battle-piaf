@@ -41,7 +41,7 @@ export abstract class WDFire<TEvents extends WDFireEvents = WDFireEvents> extend
     abstract readonly soundOnExplosion: SoundId;
 
     private _fired = false;
-    private _state: WeaponState;
+    private readonly _state: WeaponState;
 
     constructor(owner: WDPlayer) {
         super();

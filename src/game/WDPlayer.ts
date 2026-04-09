@@ -3,7 +3,6 @@ import { FairyAnimation } from '../engine/FairyAnimation.js';
 import { FairyCollisionRect } from '../engine/FairyCollision.js';
 import { FairyInputState } from '../engine/FairyInputState.js';
 import { Fairy, FairyBaseEvents } from '../engine/Fairy.js';
-import { FairyFlight } from '../engine/FairyFlight.js';
 import { WDPlayerFlight } from './WDPlayerFlight.js';
 import { WDFire } from './WDFire.js';
 import { PlayerState } from './state/PlayerState.js';
@@ -79,6 +78,9 @@ export class WDPlayer extends Fairy<WDPlayerEvents> {
     /** Weapon selected for the next shot; set by WDGame before spawning a projectile. */
     selectedWeapon: Weapon = Weapon.WEAPON_MISSILE;
 
+    /** Fire spritesheet image used to draw the shield overlay. Set by WDGame after creation. */
+    oFireImage: HTMLImageElement | null = null;
+
     readonly store = new Store<PlayerState>({
         hitPoints: 100,
         vitality: 100,
@@ -88,7 +90,9 @@ export class WDPlayer extends Fairy<WDPlayerEvents> {
         bulletHitStreak: 0,
         displayed: false,
         energy: 100,
-        maxEnergy: 100
+        maxEnergy: 100,
+        shield: 2,
+        shieldTime: 240,
     });
 
     constructor(nCode: number) {
@@ -184,17 +188,62 @@ export class WDPlayer extends Fairy<WDPlayerEvents> {
         }
     }
 
-    proceed(){
+    proceed() {
         super.proceed();
-        this.store.state.energy = Math.min(this.store.state.maxEnergy, this.store.state.energy + 1)
+        const ss = this.store.state;
+        ss.energy = Math.min(ss.maxEnergy, ss.energy + 1);
+        if (ss.shield > 0) {
+            if (ss.shieldTime > 0) {
+                ss.shieldTime--;
+            } else {
+                ss.shield = 0;
+            }
+        }
     }
 
     hitBy(wdf: WDFire) {
-        const damage = Math.ceil(wdf.state.damage * wdf.oOwner.store.state.power * this.store.state.defense);
+        const damage = Math.ceil(
+            wdf.state.damage * wdf.oOwner.store.state.power * this.store.state.defense
+        );
         this.store.state.hitPoints = Math.max(0, this.store.state.hitPoints - damage);
         this.oObservatory.notify(this, 'damaged', {
             damage,
-            damagedBy: wdf
+            damagedBy: wdf,
         });
+    }
+
+    /**
+     * Draw the player sprite then, if a front shield is active (shield >= 1),
+     * overlay the shield tile from the fire spritesheet.
+     *
+     * Shield tiles in wdspr_fire_z2.png (16 × 32, stride = 16 px):
+     *   tile 22 (sx = 352): left-facing shield — shown when player faces x−
+     *   tile 23 (sx = 368): right-facing shield — shown when player faces x+
+     */
+    override render(): void {
+        super.render();
+        if (this.store.state.shield < 1 || !this.oFireImage || !this.oContext) {
+            return;
+        }
+        const SHIELD_W = 16;
+        const SHIELD_H = 32;
+        const TILE_STRIDE = 16;
+        const facingRight = this.nFace === 1;
+        const tileIndex = facingRight ? 22 : 21;
+        const sx = tileIndex * TILE_STRIDE;
+        const playerDestX = Math.floor(this.oFlight.vPosition.x - this.vReference.x);
+        const playerDestY = Math.floor(this.oFlight.vPosition.y - this.vReference.y);
+        const destX = facingRight ? playerDestX + this.nZWidth : playerDestX - SHIELD_W;
+        this.oContext.drawImage(
+            this.oFireImage,
+            sx,
+            0,
+            SHIELD_W,
+            SHIELD_H,
+            destX,
+            playerDestY,
+            SHIELD_W,
+            SHIELD_H
+        );
     }
 }

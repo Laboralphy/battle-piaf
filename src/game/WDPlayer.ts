@@ -41,6 +41,8 @@ export interface PlayerKeys {
 export type WDPlayerEvents = FairyBaseEvents & {
     /** Emitted when the player is hit by a projectile, after hitpoints are updated. */
     damaged: { damage: number; damagedBy: WDFire };
+    /** Emitted by `die()` after physics and combat state are reset. */
+    death: Record<string, never>;
 };
 
 /**
@@ -70,6 +72,8 @@ export class WDPlayer extends Fairy<WDPlayerEvents> {
     bWantFire: boolean = false;
     /** Set to true by `updateState` when a jump is initiated; consumed by WDGame for sound. */
     bJustJumped: boolean = false;
+    /** Set to true if this entity is controllable by player. */
+    bControllable: boolean = true;
     /** Set to true by `updateState` when the down key is pressed while on a floor; consumed by WDGame collision. */
     nWantDown: number = 0;
 
@@ -92,11 +96,29 @@ export class WDPlayer extends Fairy<WDPlayerEvents> {
         displayed: false,
         energy: 100,
         maxEnergy: 100,
-        shield: 2,
-        shieldTime: 240,
+        shield: 0,
+        shieldTime: 0,
         powerBoostTime: 0,
         plasmaBallCount: 0,
     });
+
+    /**
+     * Freeze physics, reset all combat state, disable collision, and fire a
+     * `'death'` event so observers (e.g. WDGame) can react (play sound, start timer…).
+     */
+    die(): void {
+        this.bControllable = false;
+        this.oFlight.vSpeed.set(0, 0);
+        this.oFlight.vAccel.set(0, 0);
+        const ss = this.store.state;
+        ss.shield = 0;
+        ss.shieldTime = 0;
+        ss.powerBoostTime = 0;
+        ss.plasmaBallCount = 0;
+        ss.bulletHitStreak = 0;
+        this.oBoundingShape.setTangibilityMask(0);
+        this.oObservatory.notify(this, 'death', {});
+    }
 
     constructor(nCode: number) {
         super();
@@ -149,31 +171,35 @@ export class WDPlayer extends Fairy<WDPlayerEvents> {
         const keys = this.getData('keys') as PlayerKeys;
         this.nDir = 0;
 
-        if (input.getKeyState(keys.right)) {
-            this.nDir++;
-        }
-        if (input.getKeyState(keys.left)) {
-            this.nDir--;
-        }
-
-        if (input.getKeyState(keys.up)) {
-            if (this.bOnFloor) {
-                this.oFlight.vSpeed.y = -this.fJump;
-                this.bJustJumped = true;
+        /**
+         * Keys
+         */
+        if (this.bControllable) {
+            if (input.getKeyState(keys.right)) {
+                this.nDir++;
             }
-            input.setKeyState(keys.up, false);
-        }
-
-        if (input.getKeyState(keys.fire)) {
-            this.bWantFire = true;
-            input.setKeyState(keys.fire, false);
-        }
-
-        if (keys.down !== undefined && input.getKeyState(keys.down)) {
-            if (this.bOnFloor) {
-                this.nWantDown = 15;
+            if (input.getKeyState(keys.left)) {
+                this.nDir--;
             }
-            input.setKeyState(keys.down, false);
+            if (input.getKeyState(keys.up)) {
+                if (this.bOnFloor) {
+                    this.oFlight.vSpeed.y = -this.fJump;
+                    this.bJustJumped = true;
+                }
+                input.setKeyState(keys.up, false);
+            }
+
+            if (input.getKeyState(keys.fire)) {
+                this.bWantFire = true;
+                input.setKeyState(keys.fire, false);
+            }
+
+            if (keys.down !== undefined && input.getKeyState(keys.down)) {
+                if (this.bOnFloor) {
+                    this.nWantDown = 15;
+                }
+                input.setKeyState(keys.down, false);
+            }
         }
 
         this.oFlight.vSpeed.x = this.nDir * this.fSpeed;

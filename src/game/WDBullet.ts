@@ -4,7 +4,7 @@ import { FairyCollisionRect } from '../engine/FairyCollision.js';
 import { WDPlayer } from './WDPlayer.js';
 import { WDFire } from './WDFire.js';
 import type { SoundId } from './SoundManager.js';
-import WEAPON_DATA from "../data/weapons.json";
+import WEAPON_DATA from '../data/weapons.json';
 
 /**
  * Fast straight-line projectile fired by a player.
@@ -24,7 +24,7 @@ export class WDBullet extends WDFire {
     constructor(owner: WDPlayer) {
         super(owner);
 
-        this.state.damage = WEAPON_DATA.bullet.damage
+        this.state.damage = WEAPON_DATA.bullet.damage;
         this.state.cost = WEAPON_DATA.bullet.cost;
 
         this.setSize(16, 16);

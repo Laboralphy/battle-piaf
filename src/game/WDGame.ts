@@ -8,9 +8,9 @@ import { FairyMatrix } from '../engine/FairyMatrix.js';
 import { Fairies } from '../engine/Fairies.js';
 import { LoopType } from '../engine/FairyAnimation.js';
 import { WDBullet } from './WDBullet.js';
-import { WDPlayer, Weapon } from './WDPlayer.js';
+import { WDPlayer } from './WDPlayer.js';
 import { WDPlayerFlight } from './WDPlayerFlight.js';
-import { ICollidable, FairyCollisionRect } from '../engine/FairyCollision.js';
+import { FairyCollisionRect, ICollidable } from '../engine/FairyCollision.js';
 import { Fairy } from '../engine/Fairy.js';
 import { SoundManager } from './SoundManager.js';
 import { LEVELS } from '../data/levels.js';
@@ -22,7 +22,7 @@ import { WDExplosion } from './WDExplosion.js';
 import { WDBulletExplosion } from './WDBulletExplosion.js';
 import { WDPlasmaBall } from './WDPlasmaBall.js';
 import { WDPlasmaImpact } from './WDPlasmaImpact.js';
-import { WDCrate, CrateBonus } from './WDCrate.js';
+import { CrateBonus, WDCrate } from './WDCrate.js';
 import { WDBonusIndicator } from './WDBonusIndicator.js';
 
 /**
@@ -102,11 +102,12 @@ export class WDGame extends FairyEngine {
 
     /** Load all required sprite-sheet and background images. */
     protected override async stateResourceLoading(): Promise<void> {
+        const level = LEVELS[1];
         await Promise.all([
-            this.loadImage('assets/images/wdbob_land0_z2.png', 'bob'),
-            this.loadImage('assets/images/wdspr_fire_z2.png', 'spr_fire'),
-            this.loadImage('assets/images/background.png', 'bg'),
-            this.loadImage('assets/images/wdspr_pl_z2.png', 'spr_pl'),
+            this.loadImage(level.tileset, 'bob'),
+            this.loadImage('assets/images/sprites/wdspr_fire_z2.png', 'spr_fire'),
+            this.loadImage(level.background, 'bg'),
+            this.loadImage('assets/images/sprites/wdspr_pl_z2.png', 'spr_pl'),
         ]);
     }
 
@@ -126,8 +127,8 @@ export class WDGame extends FairyEngine {
         this._sprites = this.createFairyLayer();
         this._sprites.setYMax(480);
 
-        const levelData = LEVELS[0];
-        this._buildLevel(levelData);
+        const levelData = LEVELS[1];
+        this._buildLevel(levelData.map);
         this._scoreEls = [document.getElementById('score_0'), document.getElementById('score_1')];
         this._hpBarEls = [document.getElementById('hp-bar-0'), document.getElementById('hp-bar-1')];
 
@@ -165,6 +166,12 @@ export class WDGame extends FairyEngine {
                     } else {
                         shooter.store.state.bulletHitStreak = 0;
                     }
+                })
+            );
+            p.oObservatory.attach(
+                'death',
+                new Observer(this, () => {
+                    this._sounds.play('explosion-die');
                 })
             );
             this._players[i] = p;
@@ -239,15 +246,12 @@ export class WDGame extends FairyEngine {
 
     /**
      * Begin the death sequence for `player`.
-     * Freezes their physics, resets their streak, and starts the countdown.
+     * Delegates player-side cleanup to `WDPlayer.die()`, which fires the `'death'` event
+     * handled below to play the sound. This method only starts the timer.
      */
     private _startDeathSequence(player: WDPlayer): void {
-        this._sounds.play('explosion-die');
         this._deathTimers[player.nCode] = DEATH_SEQUENCE_TICKS;
-        player.oFlight.vSpeed.set(0, 0);
-        player.oFlight.vAccel.set(0, 0);
-        player.store.state.bulletHitStreak = 0;
-        player.oBoundingShape.setTangibilityMask(0);
+        player.die();
     }
 
     /**
@@ -493,9 +497,12 @@ export class WDGame extends FairyEngine {
 
     /** Spawn the appropriate explosion, play its sound, and mark the projectile dead. */
     private _explodeProjectile(fire: WDFire, x: number, y: number): void {
-        const ex = fire instanceof WDPlasmaBall ? new WDPlasmaImpact(x, y)
-                 : fire instanceof WDBullet     ? new WDBulletExplosion(x, y)
-                 :                                new WDExplosion(x, y);
+        const ex =
+            fire instanceof WDPlasmaBall
+                ? new WDPlasmaImpact(x, y)
+                : fire instanceof WDBullet
+                  ? new WDBulletExplosion(x, y)
+                  : new WDExplosion(x, y);
         this.createFairy(this._sprites, 'spr_fire', ex);
         fire.bDead = true;
         this._sounds.play(fire.soundOnExplosion);
@@ -554,9 +561,7 @@ export class WDGame extends FairyEngine {
             this._crateSpawnPositions[Math.floor(Math.random() * this._crateSpawnPositions.length)];
         const roll = Math.random();
         const bonus: CrateBonus =
-            roll < 0.25 ? CrateBonus.SHIELD :
-            roll < 0.50 ? CrateBonus.BOOST  :
-                          CrateBonus.HEAL;
+            roll < 0.25 ? CrateBonus.SHIELD : roll < 0.5 ? CrateBonus.BOOST : CrateBonus.HEAL;
         const crate = this.createFairy(this._sprites, 'spr_fire', new WDCrate(bonus));
         crate.placeOnTile(col, row);
         crate.oFlight.vSpeed.set(0, -4);
@@ -577,9 +582,21 @@ export class WDGame extends FairyEngine {
                     new WDBonusIndicator(c.bonus, c.oFlight.vPosition.x, c.oFlight.vPosition.y)
                 );
                 switch (c.bonus) {
-                    case CrateBonus.HEAL:   this._bonusHeal(player);   break;
-                    case CrateBonus.SHIELD: this._bonusShield(player); break;
-                    case CrateBonus.BOOST:  this._bonusBoost(player);  break;
+                    case CrateBonus.HEAL: {
+                        this._bonusHeal(player);
+                        break;
+                    }
+                    case CrateBonus.SHIELD: {
+                        this._bonusShield(player);
+                        break;
+                    }
+                    case CrateBonus.BOOST: {
+                        this._bonusBoost(player);
+                        break;
+                    }
+                    default: {
+                        throw new Error(`Unexpected crate bonus: ${c.bonus}`);
+                    }
                 }
             })
         );

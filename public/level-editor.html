@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Battle Piaf — Level Editor</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d0d1a;
+      color: #e0e0e0;
+      font-family: monospace;
+      font-size: 13px;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    #editor {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      padding: 8px;
+      gap: 8px;
+    }
+
+    /* ── Toolbar ──────────────────────────────────────────────────────────── */
+
+    #toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      background: #1a1a2e;
+      border: 1px solid #2a2a4a;
+      border-radius: 4px;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+
+    #toolbar h1 {
+      font-size: 13px;
+      color: #88aaff;
+      letter-spacing: 1px;
+      white-space: nowrap;
+    }
+
+    .sep {
+      width: 1px;
+      height: 20px;
+      background: #2a2a4a;
+      flex-shrink: 0;
+    }
+
+    .t-label { color: #556; font-size: 11px; white-space: nowrap; }
+
+    input[type="text"] {
+      background: #0d0d1a;
+      border: 1px solid #334;
+      color: #e0e0e0;
+      padding: 3px 8px;
+      border-radius: 3px;
+      font-family: monospace;
+      font-size: 12px;
+      width: 130px;
+    }
+    input[type="text"]:focus { outline: none; border-color: #558; }
+
+    select {
+      background: #0d0d1a;
+      border: 1px solid #334;
+      color: #e0e0e0;
+      padding: 3px 6px;
+      border-radius: 3px;
+      font-family: monospace;
+      font-size: 12px;
+    }
+
+    button {
+      background: #1e1e3a;
+      border: 1px solid #334;
+      color: #cce;
+      padding: 4px 12px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-family: monospace;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    button:hover:not(:disabled) { background: #2a2a5a; border-color: #558; }
+    button:disabled { opacity: 0.35; cursor: not-allowed; }
+    button.primary {
+      background: #143a20;
+      border-color: #2a7a48;
+      color: #8debb0;
+    }
+    button.primary:hover:not(:disabled) { background: #1e5a30; }
+
+    /* ── Workspace ────────────────────────────────────────────────────────── */
+
+    #workspace {
+      display: flex;
+      gap: 8px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* ── Palette ──────────────────────────────────────────────────────────── */
+
+    #palette-panel {
+      width: 192px;
+      flex-shrink: 0;
+      background: #14141e;
+      border: 1px solid #2a2a4a;
+      border-radius: 4px;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    #palette-canvas {
+      display: block;
+      cursor: pointer;
+      width: 192px;
+    }
+
+    /* ── Grid ─────────────────────────────────────────────────────────────── */
+
+    #grid-panel {
+      flex: 1;
+      overflow: auto;
+      background: #111;
+      border: 1px solid #2a2a4a;
+      border-radius: 4px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-start;
+    }
+
+    #grid-canvas {
+      display: block;
+      cursor: crosshair;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    /* ── Hint bar ─────────────────────────────────────────────────────────── */
+
+    #hints {
+      font-size: 10px;
+      color: #446;
+      text-align: center;
+      flex-shrink: 0;
+      padding: 2px 0;
+    }
+  </style>
+</head>
+<body>
+
+<div id="editor" @vue:mounted="mounted()">
+
+  <!-- ── Toolbar ──────────────────────────────────────────────────────────── -->
+  <div id="toolbar">
+    <h1>LEVEL EDITOR</h1>
+    <div class="sep"></div>
+
+    <span class="t-label">tilesheet:</span>
+    <select v-model="tileSheet" @change="loadTilesheet">
+      <option value="wdbob_land0_z2">wdbob_land0_z2</option>
+    </select>
+
+    <span class="t-label">background:</span>
+    <select v-model="background">
+      <option value="background-0">background-0</option>
+    </select>
+
+    <div class="sep"></div>
+
+    <span class="t-label">name:</span>
+    <input type="text" v-model="levelName" placeholder="my-level">
+
+    <div class="sep"></div>
+
+    <span class="t-label">load:</span>
+    <select v-model="loadSource">
+      <option value="level-0">level-0</option>
+      <option value="level-1">level-1</option>
+    </select>
+    <button @click="loadLevel">Load</button>
+    <button @click="clearLevel">Clear</button>
+
+    <div class="sep"></div>
+
+    <button @click="undo" :disabled="!canUndo">↩ Undo</button>
+
+    <div class="sep"></div>
+
+    <button class="primary" @click="downloadJSON">↓ Download JSON</button>
+  </div>
+
+  <!-- ── Workspace ────────────────────────────────────────────────────────── -->
+  <div id="workspace">
+
+    <div id="palette-panel">
+      <canvas id="palette-canvas" width="192"></canvas>
+    </div>
+
+    <div id="grid-panel">
+      <canvas id="grid-canvas" width="640" height="480"></canvas>
+    </div>
+
+  </div>
+
+  <div id="hints">Left-click / drag to paint &nbsp;·&nbsp; Right-click to erase &nbsp;·&nbsp; Click palette to select tile</div>
+
+</div>
+
+<script src="dist/level-editor.js"></script>
+</body>
+</html>

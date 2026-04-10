@@ -15,6 +15,8 @@ export const enum Weapon {
     WEAPON_GRENADE,
 }
 
+const SHIELD_DEFENSE_VALUE = 0.1;
+
 /**
  * Key bindings for one player.
  * Values are browser key codes (see `FairyKeys`).
@@ -85,7 +87,6 @@ export class WDPlayer extends Fairy<WDPlayerEvents> {
         hitPoints: 100,
         vitality: 100,
         power: 1,
-        defense: 1,
         score: 0,
         bulletHitStreak: 0,
         displayed: false,
@@ -93,6 +94,8 @@ export class WDPlayer extends Fairy<WDPlayerEvents> {
         maxEnergy: 100,
         shield: 2,
         shieldTime: 240,
+        powerBoostTime: 0,
+        plasmaBallCount: 0,
     });
 
     constructor(nCode: number) {
@@ -203,7 +206,9 @@ export class WDPlayer extends Fairy<WDPlayerEvents> {
 
     hitBy(wdf: WDFire) {
         const damage = Math.ceil(
-            wdf.state.damage * wdf.oOwner.store.state.power * this.store.state.defense
+            wdf.state.damage *
+                wdf.oOwner.store.state.power *
+                (this.store.state.shield > 0 ? SHIELD_DEFENSE_VALUE : 1)
         );
         this.store.state.hitPoints = Math.max(0, this.store.state.hitPoints - damage);
         this.oObservatory.notify(this, 'damaged', {
@@ -213,12 +218,12 @@ export class WDPlayer extends Fairy<WDPlayerEvents> {
     }
 
     /**
-     * Draw the player sprite then, if a front shield is active (shield >= 1),
-     * overlay the shield tile from the fire spritesheet.
+     * Draw the player sprite then, if a shield is active (shield >= 1),
+     * overlay both shield tiles from the fire spritesheet.
      *
      * Shield tiles in wdspr_fire_z2.png (16 × 32, stride = 16 px):
-     *   tile 22 (sx = 352): left-facing shield — shown when player faces x−
-     *   tile 23 (sx = 368): right-facing shield — shown when player faces x+
+     *   tile 22 (sx = 352): always drawn on the left side
+     *   tile 23 (sx = 368): always drawn on the right side
      */
     override render(): void {
         super.render();
@@ -228,19 +233,28 @@ export class WDPlayer extends Fairy<WDPlayerEvents> {
         const SHIELD_W = 16;
         const SHIELD_H = 32;
         const TILE_STRIDE = 16;
-        const facingRight = this.nFace === 1;
-        const tileIndex = facingRight ? 23 : 22;
-        const sx = tileIndex * TILE_STRIDE;
         const playerDestX = Math.floor(this.oFlight.vPosition.x - this.vReference.x);
         const playerDestY = Math.floor(this.oFlight.vPosition.y - this.vReference.y);
-        const destX = facingRight ? playerDestX + this.nZWidth : playerDestX - SHIELD_W;
+        // Left shield (tile 22)
         this.oContext.drawImage(
             this.oFireImage,
-            sx,
+            22 * TILE_STRIDE,
             0,
             SHIELD_W,
             SHIELD_H,
-            destX,
+            playerDestX - SHIELD_W,
+            playerDestY,
+            SHIELD_W,
+            SHIELD_H
+        );
+        // Right shield (tile 23)
+        this.oContext.drawImage(
+            this.oFireImage,
+            23 * TILE_STRIDE,
+            0,
+            SHIELD_W,
+            SHIELD_H,
+            playerDestX + this.nZWidth,
             playerDestY,
             SHIELD_W,
             SHIELD_H

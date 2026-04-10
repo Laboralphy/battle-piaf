@@ -4,6 +4,14 @@ import { FairyCollisionRect } from '../engine/FairyCollision.js';
 import { Fairy, FairyBaseEvents } from '../engine/Fairy.js';
 import { WDPlayer } from './WDPlayer.js';
 
+/** What the crate contains. Determines the icon drawn on it and the effect on pickup. */
+export const enum CrateBonus {
+    HEAL   = 0,
+    SHIELD = 1,
+    BOOST  = 2,
+}
+
+
 /**
  * Event map for the crate sprite.
  * Extends `FairyBaseEvents` with a `'picked'` event carrying the player who
@@ -28,8 +36,11 @@ export type WDCrateEvents = FairyBaseEvents & {
  * event to apply the power-up effect.
  */
 export class WDCrate extends Fairy<WDCrateEvents> {
-    constructor() {
+    readonly bonus: CrateBonus;
+
+    constructor(bonus: CrateBonus) {
         super();
+        this.bonus = bonus;
 
         this.setSize(16, 16);
         this.setScale(1);

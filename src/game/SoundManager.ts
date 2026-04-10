@@ -6,6 +6,7 @@ import { Howl } from 'howler';
  */
 const SOUND_SRCS: Record<string, string[][]> = {
     'shoot-bullet': [['ogg/shoot-2.ogg', 'mp3/shoot-2.mp3']],
+    'shoot-plasma': [['ogg/shoot-6.ogg', 'mp3/shoot-6.mp3']],
     'shoot-missile': [['ogg/missile-1.ogg', 'mp3/missile-1.mp3']],
     'shoot-grenade': [['ogg/missile-0.ogg', 'mp3/missile-0.mp3']],
     'explosion-missile': [['ogg/impact-3.ogg', 'mp3/impact-3.mp3']],

@@ -2,7 +2,6 @@ export type PlayerState = {
     hitPoints: number;
     vitality: number;
     power: number;
-    defense: number;
     score: number;
     bulletHitStreak: number;
     displayed: boolean;
@@ -10,4 +9,6 @@ export type PlayerState = {
     maxEnergy: number;
     shield: number;
     shieldTime: number;
+    powerBoostTime: number;
+    plasmaBallCount: number;
 };

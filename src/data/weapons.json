@@ -3,6 +3,10 @@
         "damage": 8,
         "cost": 16
     },
+    "plasma": {
+        "damage": 12,
+        "cost": 20
+    },
     "missile": {
         "damage": 20,
         "cost": 50

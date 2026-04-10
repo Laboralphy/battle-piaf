@@ -20,7 +20,10 @@ import { WDFire } from './WDFire.js';
 import { WDExhaust } from './WDExhaust.js';
 import { WDExplosion } from './WDExplosion.js';
 import { WDBulletExplosion } from './WDBulletExplosion.js';
-import { WDCrate } from './WDCrate.js';
+import { WDPlasmaBall } from './WDPlasmaBall.js';
+import { WDPlasmaImpact } from './WDPlasmaImpact.js';
+import { WDCrate, CrateBonus } from './WDCrate.js';
+import { WDBonusIndicator } from './WDBonusIndicator.js';
 
 /**
  * Keyboard bindings for each player.
@@ -82,7 +85,6 @@ export class WDGame extends FairyEngine {
 
     /** Sound manager for jump, shoot, and hit effects. */
     private _sounds = new SoundManager();
-
 
     /** Death sequence countdown per player (-1 = alive, ≥0 = dying). */
     private _deathTimers: [number, number] = [-1, -1];
@@ -150,12 +152,12 @@ export class WDGame extends FairyEngine {
                 new Observer(this, (sender: Fairy, { damage, damagedBy }) => {
                     this._sounds.play('hurt');
                     const shooter = damagedBy.oOwner;
-                    const victim  = sender as WDPlayer;
+                    const victim = sender as WDPlayer;
                     shooter.store.state.score += damage;
 
                     if (victim.store.state.hitPoints <= 0 && this._deathTimers[victim.nCode] < 0) {
                         this._startDeathSequence(victim);
-                    } else if (damagedBy instanceof WDBullet) {
+                    } else if (damagedBy instanceof WDBullet || damagedBy instanceof WDPlasmaBall) {
                         if (++shooter.store.state.bulletHitStreak >= 2) {
                             shooter.store.state.bulletHitStreak = 0;
                             this._autoFireMissile(shooter, victim);
@@ -199,9 +201,15 @@ export class WDGame extends FairyEngine {
                 player.bWantFire = false;
                 const enemy = this._players[1 - player.nCode];
                 const heightDiff = enemy.oFlight.vPosition.y - player.oFlight.vPosition.y;
-                const projectile = heightDiff > GRENADE_HEIGHT_THRESHOLD
-                    ? new WDGrenade(player)
-                    : new WDBullet(player);
+                let projectile;
+                if (heightDiff > GRENADE_HEIGHT_THRESHOLD) {
+                    projectile = new WDGrenade(player);
+                } else if (player.store.state.plasmaBallCount > 0) {
+                    player.store.state.plasmaBallCount--;
+                    projectile = new WDPlasmaBall(player);
+                } else {
+                    projectile = new WDBullet(player);
+                }
                 this._fireProjectile(player, projectile);
             }
         }
@@ -251,12 +259,14 @@ export class WDGame extends FairyEngine {
         const timer = --this._deathTimers[player.nCode];
 
         // Blink: alternate visibility every 4 ticks.
-        player.bVisible = (timer % 4) >= 2;
+        player.bVisible = timer % 4 >= 2;
 
         // Spawn one explosion every DEATH_EXPLOSION_INTERVAL ticks.
         const elapsed = DEATH_SEQUENCE_TICKS - timer;
-        if (elapsed % DEATH_EXPLOSION_INTERVAL === 0 &&
-            elapsed / DEATH_EXPLOSION_INTERVAL < DEATH_EXPLOSION_COUNT) {
+        if (
+            elapsed % DEATH_EXPLOSION_INTERVAL === 0 &&
+            elapsed / DEATH_EXPLOSION_INTERVAL < DEATH_EXPLOSION_COUNT
+        ) {
             const ox = (Math.random() - 0.5) * 32;
             const oy = (Math.random() - 0.5) * 32;
             const ex = this.createFairy(
@@ -293,9 +303,7 @@ export class WDGame extends FairyEngine {
         this.createFairy(this._sprites, 'spr_fire', projectile);
         projectile.oObservatory.attach(
             'fire',
-            new Observer(this, (sender: Fairy) =>
-                this._sounds.play((sender as WDFire).soundOnFire)
-            )
+            new Observer(this, (sender: Fairy) => this._sounds.play((sender as WDFire).soundOnFire))
         );
         projectile.oObservatory.attach(
             'move',
@@ -485,7 +493,9 @@ export class WDGame extends FairyEngine {
 
     /** Spawn the appropriate explosion, play its sound, and mark the projectile dead. */
     private _explodeProjectile(fire: WDFire, x: number, y: number): void {
-        const ex = fire instanceof WDBullet ? new WDBulletExplosion(x, y) : new WDExplosion(x, y);
+        const ex = fire instanceof WDPlasmaBall ? new WDPlasmaImpact(x, y)
+                 : fire instanceof WDBullet     ? new WDBulletExplosion(x, y)
+                 :                                new WDExplosion(x, y);
         this.createFairy(this._sprites, 'spr_fire', ex);
         fire.bDead = true;
         this._sounds.play(fire.soundOnExplosion);
@@ -540,10 +550,14 @@ export class WDGame extends FairyEngine {
         if (this._crateSpawnPositions.length === 0) {
             return;
         }
-        const { col, row } = this._crateSpawnPositions[
-            Math.floor(Math.random() * this._crateSpawnPositions.length)
-        ];
-        const crate = this.createFairy(this._sprites, 'spr_fire', new WDCrate());
+        const { col, row } =
+            this._crateSpawnPositions[Math.floor(Math.random() * this._crateSpawnPositions.length)];
+        const roll = Math.random();
+        const bonus: CrateBonus =
+            roll < 0.25 ? CrateBonus.SHIELD :
+            roll < 0.50 ? CrateBonus.BOOST  :
+                          CrateBonus.HEAL;
+        const crate = this.createFairy(this._sprites, 'spr_fire', new WDCrate(bonus));
         crate.placeOnTile(col, row);
         crate.oFlight.vSpeed.set(0, -4);
         crate.oObservatory.attach(
@@ -554,12 +568,37 @@ export class WDGame extends FairyEngine {
         );
         crate.oObservatory.attach(
             'picked',
-            new Observer(this, (_sender, { player }) => {
+            new Observer(this, (sender, { player }) => {
                 this._sounds.play('pick');
+                const c = sender as WDCrate;
+                this.createFairy(
+                    this._sprites,
+                    'spr_fire',
+                    new WDBonusIndicator(c.bonus, c.oFlight.vPosition.x, c.oFlight.vPosition.y)
+                );
+                switch (c.bonus) {
+                    case CrateBonus.HEAL:   this._bonusHeal(player);   break;
+                    case CrateBonus.SHIELD: this._bonusShield(player); break;
+                    case CrateBonus.BOOST:  this._bonusBoost(player);  break;
+                }
             })
         );
         this._activeCrate = crate;
         this._crateTTLTimer = CRATE_TIME_TO_LIVE;
+    }
+
+    private _bonusHeal(player: WDPlayer): void {
+        const ss = player.store.state;
+        ss.hitPoints = Math.min(ss.vitality, ss.hitPoints + 30);
+    }
+
+    private _bonusShield(player: WDPlayer): void {
+        player.store.state.shield = 1;
+        player.store.state.shieldTime = 6 * 60;
+    }
+
+    private _bonusBoost(player: WDPlayer): void {
+        player.store.state.plasmaBallCount += 10;
     }
 
     /**
@@ -573,10 +612,10 @@ export class WDGame extends FairyEngine {
 
         if (flight.vNewPosition.y > flight.vPosition.y) {
             const bottomY = flight.vNewPosition.y + 8;
-            const tileX1  = Math.floor(flight.vNewPosition.x - 8) >> 5;
-            const tileX2  = Math.floor(flight.vNewPosition.x + 7) >> 5;
-            const tileY   = Math.floor(bottomY) >> 5;
-            const subY    = Math.floor(bottomY) % 32;
+            const tileX1 = Math.floor(flight.vNewPosition.x - 8) >> 5;
+            const tileX2 = Math.floor(flight.vNewPosition.x + 7) >> 5;
+            const tileY = Math.floor(bottomY) >> 5;
+            const subY = Math.floor(bottomY) % 32;
 
             if (subY < 16) {
                 const code = Math.max(

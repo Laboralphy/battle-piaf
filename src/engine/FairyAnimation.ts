@@ -103,22 +103,29 @@ export class FairyAnimation {
         this.nLoopCount = this.bEternal ? 1 : this.nLoopInitialCount;
 
         switch (this.nLoopType) {
-            case LoopType.None:
+            case LoopType.None: {
                 this.nLoopDirection = 0;
                 this._loopHandler = () => this._proceedLoopNone();
                 break;
-            case LoopType.Forward:
+            }
+            case LoopType.Forward: {
                 this.nLoopDirection = 1;
                 this._loopHandler = () => this._proceedLoopForward();
                 break;
-            case LoopType.Backward:
+            }
+            case LoopType.Backward: {
                 this.nLoopDirection = -1;
                 this._loopHandler = () => this._proceedLoopBackward();
                 break;
-            case LoopType.Yoyo:
+            }
+            case LoopType.Yoyo: {
                 this.nLoopDirection = 1;
                 this._loopHandler = () => this._proceedLoopYoyo();
                 break;
+            }
+            default: {
+                throw new ReferenceError(`Invalid loop type: ${this.nLoopType}`);
+            }
         }
     }
 

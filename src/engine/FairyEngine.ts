@@ -13,7 +13,6 @@ interface ILayer {
     render(): void;
 }
 
-
 /**
  * Base engine class.  Subclasses override the four state hooks to implement a game.
  *
@@ -50,10 +49,16 @@ export class FairyEngine {
 
     /** Bound input handlers — stored so they can be removed by `destroy()`. */
     private _onKeyDown = (e: KeyboardEvent) => this._input.setKeyState(e.keyCode || e.which, true);
-    private _onKeyUp   = (e: KeyboardEvent) => this._input.setKeyState(e.keyCode || e.which, false);
-    private _onMouseMove  = (e: MouseEvent) => this._input.setMouseXY(e.clientX, e.clientY);
-    private _onMouseDown  = (e: MouseEvent) => { this._input.setMouseButton(e.button, true);  return false; };
-    private _onMouseUp    = (e: MouseEvent) => { this._input.setMouseButton(e.button, false); return false; };
+    private _onKeyUp = (e: KeyboardEvent) => this._input.setKeyState(e.keyCode || e.which, false);
+    private _onMouseMove = (e: MouseEvent) => this._input.setMouseXY(e.clientX, e.clientY);
+    private _onMouseDown = (e: MouseEvent) => {
+        this._input.setMouseButton(e.button, true);
+        return false;
+    };
+    private _onMouseUp = (e: MouseEvent) => {
+        this._input.setMouseButton(e.button, false);
+        return false;
+    };
 
     constructor() {
         this._seq.addState('stateEngineInitializing', () => this._doEngineInit());
@@ -252,11 +257,17 @@ export class FairyEngine {
     destroy(): void {
         this.stop();
         window.removeEventListener('keydown', this._onKeyDown);
-        window.removeEventListener('keyup',   this._onKeyUp);
+        window.removeEventListener('keyup', this._onKeyUp);
         if (this._canvas) {
-            this._canvas.removeEventListener('mousemove',  this._onMouseMove);
-            this._canvas.removeEventListener('mousedown',  this._onMouseDown as unknown as EventListener);
-            this._canvas.removeEventListener('mouseup',    this._onMouseUp as unknown   as EventListener);
+            this._canvas.removeEventListener('mousemove', this._onMouseMove);
+            this._canvas.removeEventListener(
+                'mousedown',
+                this._onMouseDown as unknown as EventListener
+            );
+            this._canvas.removeEventListener(
+                'mouseup',
+                this._onMouseUp as unknown as EventListener
+            );
         }
         this.clearLayers();
     }
@@ -281,12 +292,15 @@ export class FairyEngine {
     /** Attach keyboard and mouse event listeners to the window and canvas. */
     private _bindInputEvents(): void {
         window.addEventListener('keydown', this._onKeyDown);
-        window.addEventListener('keyup',   this._onKeyUp);
+        window.addEventListener('keyup', this._onKeyUp);
 
         if (this._canvas) {
             this._canvas.addEventListener('mousemove', this._onMouseMove);
-            this._canvas.addEventListener('mousedown', this._onMouseDown as unknown as EventListener);
-            this._canvas.addEventListener('mouseup',   this._onMouseUp as unknown   as EventListener);
+            this._canvas.addEventListener(
+                'mousedown',
+                this._onMouseDown as unknown as EventListener
+            );
+            this._canvas.addEventListener('mouseup', this._onMouseUp as unknown as EventListener);
         }
     }
 }

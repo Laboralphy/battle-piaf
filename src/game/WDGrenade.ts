@@ -45,8 +45,8 @@ export class WDGrenade extends WDFire {
     constructor(owner: WDPlayer) {
         super(owner);
 
-        this.state.damage = WEAPON_DATA.grenade.damage
-        this.state.cost = WEAPON_DATA.grenade.cost
+        this.state.damage = WEAPON_DATA.grenade.damage;
+        this.state.cost = WEAPON_DATA.grenade.cost;
 
         this.setSize(16, 16);
         this.setScale(1);

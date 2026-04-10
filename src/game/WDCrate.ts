@@ -6,11 +6,10 @@ import { WDPlayer } from './WDPlayer.js';
 
 /** What the crate contains. Determines the icon drawn on it and the effect on pickup. */
 export const enum CrateBonus {
-    HEAL   = 0,
+    HEAL = 0,
     SHIELD = 1,
-    BOOST  = 2,
+    BOOST = 2,
 }
-
 
 /**
  * Event map for the crate sprite.
@@ -59,10 +58,7 @@ export class WDCrate extends Fairy<WDCrateEvents> {
 
         // Collide with both players: mask 7 (111b) & player 5 (101b) = 5 ≠ 0,
         //                                           mask 7 (111b) & player 6 (110b) = 6 ≠ 0.
-        this.setBoundingShape(
-            new FairyCollisionRect(new Vector2D(-8, -8), new Vector2D(8, 8)),
-            7
-        );
+        this.setBoundingShape(new FairyCollisionRect(new Vector2D(-8, -8), new Vector2D(8, 8)), 7);
     }
 
     /**
@@ -75,8 +71,8 @@ export class WDCrate extends Fairy<WDCrateEvents> {
      */
     placeOnTile(col: number, row: number, tileSize = 32): void {
         this.oFlight.vPosition.set(
-            col * tileSize + tileSize / 2,  // horizontally centred over the tile
-            row * tileSize - 8              // vertically: bottom of 16px crate flush with tile top
+            col * tileSize + tileSize / 2, // horizontally centred over the tile
+            row * tileSize - 8 // vertically: bottom of 16px crate flush with tile top
         );
     }
 

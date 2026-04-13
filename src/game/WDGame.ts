@@ -13,7 +13,7 @@ import { WDPlayerFlight } from './WDPlayerFlight.js';
 import { FairyCollisionRect, ICollidable } from '../engine/FairyCollision.js';
 import { Fairy } from '../engine/Fairy.js';
 import { SoundManager } from './SoundManager.js';
-import { LEVELS } from '../data/levels.js';
+import {LevelData, LEVELS } from '../data/levels.js';
 import { WDMissile } from './WDMissile.js';
 import { WDGrenade } from './WDGrenade.js';
 import { WDFire } from './WDFire.js';
@@ -24,6 +24,7 @@ import { WDPlasmaBall } from './WDPlasmaBall.js';
 import { WDPlasmaImpact } from './WDPlasmaImpact.js';
 import { CrateBonus, WDCrate } from './WDCrate.js';
 import { WDBonusIndicator } from './WDBonusIndicator.js';
+import {TILE_ANIMATIONS} from "../data/tile-animations";
 
 /**
  * Keyboard bindings for each player.
@@ -128,7 +129,7 @@ export class WDGame extends FairyEngine {
         this._sprites.setYMax(480);
 
         const levelData = LEVELS[1];
-        this._buildLevel(levelData.map);
+        this._buildLevel(levelData);
         this._scoreEls = [document.getElementById('score_0'), document.getElementById('score_1')];
         this._hpBarEls = [document.getElementById('hp-bar-0'), document.getElementById('hp-bar-1')];
 
@@ -232,14 +233,18 @@ export class WDGame extends FairyEngine {
      * Populate `_land` from a level data array using `FairyLevelBuilder`.
      * Registers animated tile codes K (lava), N (water), and Q (flicker).
      */
-    private _buildLevel(data: string[]): void {
+    private _buildLevel(data: LevelData): void {
+        const levelMap = data.map;
+        const animationData = Object.values(TILE_ANIMATIONS).find(ad => ad.tileset === data.tileset)
         const builder = new FairyLevelBuilder();
         builder.setMatrix(this._land);
         builder.nMetaMultiplier = 120;
-        builder.addAnimation('K.', 20, 3, LoopType.Yoyo, 1, 20, 0);
-        builder.addAnimation('N.', 23, 2, LoopType.Forward, 1, 64, 0);
-        builder.addAnimation('Q.', 26, 3, LoopType.Yoyo, 1, 8, 0);
-        builder.build(data);
+        if (animationData) {
+            Object.entries(animationData.animations).forEach(([key, value]) => {
+                builder.addAnimation(key, value.start, value.count, value.loop.type, value.loop.inc, value.loop.dur, value.loop.count);
+            })
+        }
+        builder.build(levelMap);
     }
 
     // ── Death sequence ────────────────────────────────────────────────────────

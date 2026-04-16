@@ -98,12 +98,10 @@ export class WDGame extends FairyEngine {
 
     /** Valid tile positions (col, row) where a crate can be spawned. Built once at init. */
     private _crateSpawnPositions: Array<{ col: number; row: number }> = [];
-    /** Currently live crate, or null if none is on screen. */
-    private _activeCrate: WDCrate | null = null;
+    /** All crates currently live on screen. */
+    private _activeCrates: WDCrate[] = [];
     /** Countdown to the next crate spawn (ticks). */
     private _crateTimer = 0;
-    /** Countdown until the active crate expires (ticks). */
-    private _crateTTLTimer = 0;
 
     // ── Resource loading ─────────────────────────────────────────────────────
 
@@ -215,6 +213,10 @@ export class WDGame extends FairyEngine {
                 if (player.bJustJumped) {
                     this._sounds.play('jump');
                     player.bJustJumped = false;
+                }
+                if (player.bJustLanded) {
+                    this._sounds.play('land');
+                    player.bJustLanded = false;
                 }
             }
         }
@@ -487,6 +489,7 @@ export class WDGame extends FairyEngine {
         }
 
         // Tile floor collision (semi-solid * and fully solid #, only while falling)
+        const wasOnFloor = player.bOnFloor;
         player.bOnFloor = false;
         if (flight.vNewPosition.y > flight.vPosition.y) {
             const [p1, p2] = rect.getPoints();
@@ -516,6 +519,9 @@ export class WDGame extends FairyEngine {
                         flight.vNewPosition.y = (tileY << 5) - 1;
                         flight.vNewSpeed.y = 0;
                         player.bOnFloor = true;
+                        if (!wasOnFloor) {
+                            player.bJustLanded = true;
+                        }
                     }
                 }
             }
@@ -638,21 +644,32 @@ export class WDGame extends FairyEngine {
 
     /**
      * Pick a random valid tile from `_crateSpawnPositions`, instantiate a `WDCrate`,
-     * attach the `'picked'` observer, and start its TTL countdown.
+     * attach observers, and push it into `_activeCrates`.
      * Does nothing if there are no valid spawn positions.
+     * @param allowMultiCrate - When false (used when spawning from a MULTICRATE pickup),
+     *   the MULTICRATE bonus is excluded to prevent cascading spawns.
      */
-    private _spawnCrate(): void {
+    private _spawnCrate(allowMultiCrate = true): void {
         if (this._crateSpawnPositions.length === 0) {
             return;
         }
         const { col, row } =
             this._crateSpawnPositions[Math.floor(Math.random() * this._crateSpawnPositions.length)];
         const roll = Math.random();
-        const bonus: CrateBonus =
-            roll < 0.25 ? CrateBonus.SHIELD : roll < 0.5 ? CrateBonus.BOOST : CrateBonus.HEAL;
+        let bonus: CrateBonus;
+        if (allowMultiCrate && roll < 0.10) {
+            bonus = CrateBonus.MULTICRATE;
+        } else if (roll < 0.35) {
+            bonus = CrateBonus.SHIELD;
+        } else if (roll < 0.60) {
+            bonus = CrateBonus.BOOST;
+        } else {
+            bonus = CrateBonus.HEAL;
+        }
         const crate = this.createFairy(this._sprites, 'spr_fire', new WDCrate(bonus));
         crate.placeOnTile(col, row);
         crate.oFlight.vSpeed.set(0, -4);
+        crate.ttl = CRATE_TIME_TO_LIVE;
         crate.oObservatory.attach(
             'move',
             new Observer(this, (sender: Fairy, flight: FairyFlight) =>
@@ -682,14 +699,25 @@ export class WDGame extends FairyEngine {
                         this._bonusBoost(player);
                         break;
                     }
+                    case CrateBonus.MULTICRATE: {
+                        this._bonusMultiCrate();
+                        break;
+                    }
                     default: {
                         throw new Error(`Unexpected crate bonus: ${c.bonus}`);
                     }
                 }
             })
         );
-        this._activeCrate = crate;
-        this._crateTTLTimer = CRATE_TIME_TO_LIVE;
+        this._activeCrates.push(crate);
+    }
+
+    /** Spawn 3–5 non-MULTICRATE crates immediately as a burst reward. */
+    private _bonusMultiCrate(): void {
+        const count = 3 + Math.floor(Math.random() * 3); // 3, 4, or 5
+        for (let i = 0; i < count; i++) {
+            this._spawnCrate(false);
+        }
     }
 
     private _bonusHeal(player: WDPlayer): void {
@@ -737,27 +765,22 @@ export class WDGame extends FairyEngine {
 
     /**
      * Called every tick.
-     * - When no crate is active: count down the spawn timer and spawn when it expires.
-     * - When a crate is active: count down its TTL and expire it if time is up.
-     * - When the active crate has been collected (bDead): clear the reference and
-     *   reset the spawn timer for the next cycle.
+     * - Ticks each active crate's TTL; marks it dead when time runs out.
+     * - Removes dead crates from the list.
+     * - Counts down the spawn timer independently; spawns a new crate when it fires.
      */
     private _updateCrate(): void {
-        if (this._activeCrate !== null) {
-            if (this._activeCrate.bDead) {
-                // Crate was collected or expired — schedule next spawn.
-                this._activeCrate = null;
-                this._crateTimer =
-                    CRATE_TIME_TO_SPAWN +
-                    Math.floor((Math.random() * 2 - 1) * CRATE_SPAWN_VARIANCE);
-            } else if (--this._crateTTLTimer <= 0) {
-                // TTL expired — remove crate without triggering a pickup event.
-                this._activeCrate.bDead = true;
+        for (const crate of this._activeCrates) {
+            if (!crate.bDead && --crate.ttl <= 0) {
+                crate.bDead = true;
             }
-        } else {
-            if (--this._crateTimer <= 0) {
-                this._spawnCrate();
-            }
+        }
+        this._activeCrates = this._activeCrates.filter(c => !c.bDead);
+
+        if (--this._crateTimer <= 0) {
+            this._spawnCrate();
+            this._crateTimer =
+                CRATE_TIME_TO_SPAWN + Math.floor((Math.random() * 2 - 1) * CRATE_SPAWN_VARIANCE);
         }
     }
 

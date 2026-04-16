@@ -9,14 +9,15 @@ const SOUND_SRCS: Record<string, { channel: string | null; srcs: string[][] }> =
     'shoot-bullet': { channel: 'shoot', srcs: [['ogg/shoot-2.ogg', 'mp3/shoot-2.mp3']] },
     'shoot-plasma': { channel: 'shoot', srcs: [['ogg/shoot-6.ogg', 'mp3/shoot-6.mp3']] },
     'shoot-missile': { channel: 'missile', srcs: [['ogg/missile-1.ogg', 'mp3/missile-1.mp3']] },
-    'shoot-grenade': { channel: 'missile', srcs: [['ogg/missile-0.ogg', 'mp3/missile-0.mp3']] },
+    'shoot-grenade': { channel: 'missile', srcs: [['ogg/shoot-8.ogg', 'mp3/shoot-8.mp3']] },
     'explosion-missile': { channel: 'explosion', srcs: [['ogg/impact-3.ogg', 'mp3/impact-3.mp3']] },
     'explosion-die': {
         channel: 'explosion',
         srcs: [['ogg/explosion-0.ogg', 'mp3/explosion-0.mp3']],
     },
     jump: { channel: 'jump', srcs: [['ogg/jump-0.ogg', 'mp3/jump-0.mp3']] },
-    hit: { channel: 'hit', srcs: [['ogg/impact-1.ogg', 'mp3/impact-1.mp3']] },
+    land: { channel: 'jump', srcs: [['ogg/hit-short.ogg', 'mp3/hit-short.mp3']] },
+    hit: { channel: 'hit', srcs: [['ogg/hit-gravel.ogg', 'mp3/hit-gravel.mp3']] },
     hurt: { channel: 'hit', srcs: [['ogg/alert-0.ogg', 'mp3/alert-0.mp3']] },
     pick: { channel: null, srcs: [['ogg/pick-0.ogg', 'mp3/pick-0.mp3']] },
 };

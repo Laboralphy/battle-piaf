@@ -1,7 +1,7 @@
 {
     "tileset": "wdbob_land0_z2",
-    "background": "assets/images/backgrounds/background-0.png",
-    "music": "ht-main-theme",
+    "background": "assets/images/backgrounds/background-brown-forest.png",
+    "music": "cebit",
     "map": [
         "1#1#1#1#1#1#1#1#1#1#1#1#1#1#1#1#1#1#1#1#",
         "1#0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.1#",

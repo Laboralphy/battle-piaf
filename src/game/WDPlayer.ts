@@ -72,6 +72,8 @@ export class WDPlayer extends Fairy<WDPlayerEvents> {
     bWantFire: boolean = false;
     /** Set to true by `updateState` when a jump is initiated; consumed by WDGame for sound. */
     bJustJumped: boolean = false;
+    /** Set to true by WDGame when the player first touches a floor tile; consumed by WDGame for sound. */
+    bJustLanded: boolean = false;
     /** Set to true if this entity is controllable by player. */
     bControllable: boolean = true;
     /** Set to true by `updateState` when the down key is pressed while on a floor; consumed by WDGame collision. */

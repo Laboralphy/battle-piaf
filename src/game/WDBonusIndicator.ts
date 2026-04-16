@@ -9,6 +9,7 @@ const BONUS_TILE: Record<CrateBonus, number> = {
     [CrateBonus.HEAL]: 24,
     [CrateBonus.SHIELD]: 25,
     [CrateBonus.BOOST]: 26,
+    [CrateBonus.MULTICRATE]: 27,
 };
 
 /**

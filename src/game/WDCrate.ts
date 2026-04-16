@@ -9,6 +9,7 @@ export const enum CrateBonus {
     HEAL = 0,
     SHIELD = 1,
     BOOST = 2,
+    MULTICRATE = 3,
 }
 
 /**
@@ -36,6 +37,8 @@ export type WDCrateEvents = FairyBaseEvents & {
  */
 export class WDCrate extends Fairy<WDCrateEvents> {
     readonly bonus: CrateBonus;
+    /** Remaining ticks before the crate expires on its own. Set by WDGame at spawn time. */
+    ttl = 0;
 
     constructor(bonus: CrateBonus) {
         super();

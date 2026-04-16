@@ -6,14 +6,13 @@ import { FairyKeys } from '../engine/FairyKeys.js';
 import { FairyLevelBuilder } from '../engine/FairyLevelBuilder.js';
 import { FairyMatrix } from '../engine/FairyMatrix.js';
 import { Fairies } from '../engine/Fairies.js';
-import { LoopType } from '../engine/FairyAnimation.js';
 import { WDBullet } from './WDBullet.js';
 import { WDPlayer } from './WDPlayer.js';
 import { WDPlayerFlight } from './WDPlayerFlight.js';
 import { FairyCollisionRect, ICollidable } from '../engine/FairyCollision.js';
 import { Fairy } from '../engine/Fairy.js';
 import { SoundManager } from './SoundManager.js';
-import {LevelData, LEVELS } from '../data/levels.js';
+import { LevelData, LEVELS } from './levels';
 import { WDMissile } from './WDMissile.js';
 import { WDGrenade } from './WDGrenade.js';
 import { WDFire } from './WDFire.js';
@@ -24,7 +23,7 @@ import { WDPlasmaBall } from './WDPlasmaBall.js';
 import { WDPlasmaImpact } from './WDPlasmaImpact.js';
 import { CrateBonus, WDCrate } from './WDCrate.js';
 import { WDBonusIndicator } from './WDBonusIndicator.js';
-import {TILE_ANIMATIONS} from "../data/tile-animations";
+import { TILE_DATA } from './tile-animations';
 
 /**
  * Keyboard bindings for each player.
@@ -63,6 +62,10 @@ const DEATH_SEQUENCE_TICKS = 60;
 const DEATH_EXPLOSION_INTERVAL = 10;
 /** Number of explosions spawned during the death sequence. */
 const DEATH_EXPLOSION_COUNT = 6;
+/** Bonus score awarded to the player who lands the killing blow. */
+const SCORE_DESTROYING_FOE = 1000;
+/** Delay before a dead player respawns, in ticks (~4 s at 60 Hz). */
+const RESPAWN_DELAY_TICKS = Math.trunc(2 * TICKS_PER_SECOND);
 
 /**
  * Main game class for Battle Piaf.
@@ -83,12 +86,15 @@ export class WDGame extends FairyEngine {
     /** DOM elements for the per-player score display. */
     private _scoreEls: [HTMLElement | null, HTMLElement | null] = [null, null];
     private _hpBarEls: [HTMLElement | null, HTMLElement | null] = [null, null];
+    private _precisionEls: [HTMLElement | null, HTMLElement | null] = [null, null];
 
     /** Sound manager for jump, shoot, and hit effects. */
     private _sounds = new SoundManager();
 
     /** Death sequence countdown per player (-1 = alive, ≥0 = dying). */
     private _deathTimers: [number, number] = [-1, -1];
+    /** Respawn countdown per player (-1 = not waiting, ≥0 = waiting to respawn). */
+    private _respawnTimers: [number, number] = [-1, -1];
 
     /** Valid tile positions (col, row) where a crate can be spawned. Built once at init. */
     private _crateSpawnPositions: Array<{ col: number; row: number }> = [];
@@ -103,9 +109,9 @@ export class WDGame extends FairyEngine {
 
     /** Load all required sprite-sheet and background images. */
     protected override async stateResourceLoading(): Promise<void> {
-        const level = LEVELS[1];
+        const level = LEVELS[0];
         await Promise.all([
-            this.loadImage(level.tileset, 'bob'),
+            this.loadImage(TILE_DATA[level.tileset].image, 'bob'),
             this.loadImage('assets/images/sprites/wdspr_fire_z2.png', 'spr_fire'),
             this.loadImage(level.background, 'bg'),
             this.loadImage('assets/images/sprites/wdspr_pl_z2.png', 'spr_pl'),
@@ -128,10 +134,15 @@ export class WDGame extends FairyEngine {
         this._sprites = this.createFairyLayer();
         this._sprites.setYMax(480);
 
-        const levelData = LEVELS[1];
+        const levelData = LEVELS[0];
         this._buildLevel(levelData);
+        this._sounds.startBGM([
+            `assets/musics/ogg/${levelData.music}.ogg`,
+            `assets/musics/mp3/${levelData.music}.mp3`,
+        ]);
         this._scoreEls = [document.getElementById('score_0'), document.getElementById('score_1')];
         this._hpBarEls = [document.getElementById('hp-bar-0'), document.getElementById('hp-bar-1')];
+        this._precisionEls = [document.getElementById('precision_0'), document.getElementById('precision_1')];
 
         for (let i = 0; i < 2; i++) {
             const p = this.createFairy(this._sprites, 'spr_pl', new WDPlayer(i)) as WDPlayer;
@@ -156,8 +167,10 @@ export class WDGame extends FairyEngine {
                     const shooter = damagedBy.oOwner;
                     const victim = sender as WDPlayer;
                     shooter.store.state.score += damage;
+                    shooter.store.state.enemyHit++;
 
                     if (victim.store.state.hitPoints <= 0 && this._deathTimers[victim.nCode] < 0) {
+                        shooter.store.state.score += SCORE_DESTROYING_FOE;
                         this._startDeathSequence(victim);
                     } else if (damagedBy instanceof WDBullet || damagedBy instanceof WDPlasmaBall) {
                         if (++shooter.store.state.bulletHitStreak >= 2) {
@@ -195,6 +208,8 @@ export class WDGame extends FairyEngine {
         for (const player of this._players) {
             if (this._deathTimers[player.nCode] >= 0) {
                 this._updateDeathSequence(player);
+            } else if (this._respawnTimers[player.nCode] >= 0) {
+                this._updateRespawnTimer(player);
             } else {
                 player.updateState(this._input);
                 if (player.bJustJumped) {
@@ -235,14 +250,22 @@ export class WDGame extends FairyEngine {
      */
     private _buildLevel(data: LevelData): void {
         const levelMap = data.map;
-        const animationData = Object.values(TILE_ANIMATIONS).find(ad => ad.tileset === data.tileset)
+        const animationData = TILE_DATA[data.tileset];
         const builder = new FairyLevelBuilder();
         builder.setMatrix(this._land);
         builder.nMetaMultiplier = 120;
         if (animationData) {
             Object.entries(animationData.animations).forEach(([key, value]) => {
-                builder.addAnimation(key, value.start, value.count, value.loop.type, value.loop.inc, value.loop.dur, value.loop.count);
-            })
+                builder.addAnimation(
+                    key,
+                    value.start,
+                    value.count,
+                    value.loop.type,
+                    value.loop.inc,
+                    value.loop.dur,
+                    value.loop.count
+                );
+            });
         }
         builder.build(levelMap);
     }
@@ -289,10 +312,69 @@ export class WDGame extends FairyEngine {
             ex.setScale(1 + Math.random() * 0.25);
         }
 
-        // Sequence over: hide the player permanently.
+        // Sequence over: hide the player and start the respawn countdown.
         if (timer <= 0) {
             player.bVisible = false;
             this._deathTimers[player.nCode] = -1;
+            this._respawnTimers[player.nCode] = RESPAWN_DELAY_TICKS;
+        }
+    }
+
+    // ── Respawn ───────────────────────────────────────────────────────────────
+
+    /** Tick the respawn countdown; call `_respawnPlayer` when it expires. */
+    private _updateRespawnTimer(player: WDPlayer): void {
+        if (--this._respawnTimers[player.nCode] <= 0) {
+            this._respawnTimers[player.nCode] = -1;
+            this._respawnPlayer(player);
+        }
+    }
+
+    /**
+     * Restore a dead player to full combat state at a random arena position.
+     * Score is intentionally preserved.
+     */
+    private _respawnPlayer(player: WDPlayer): void {
+        const ss = player.store.state;
+        ss.hitPoints = ss.vitality;
+        ss.energy = ss.maxEnergy;
+        ss.power = 1;
+        ss.shield = 0;
+        ss.shieldTime = 0;
+        ss.powerBoostTime = 0;
+        ss.plasmaBallCount = 0;
+        ss.bulletHitStreak = 0;
+        const spawnPos =
+            this._crateSpawnPositions[Math.floor(Math.random() * this._crateSpawnPositions.length)];
+        const spawnX = spawnPos.col * 32 + 16;
+        const spawnY = spawnPos.row * 32 - 1;
+        player.oFlight.vPosition.set(spawnX, spawnY);
+        player.oFlight.vSpeed.set(0, 0);
+        player.oFlight.vAccel.set(0, 0.25);
+        player.oBoundingShape.setTangibilityMask(4 + player.nCode + 1);
+        player.bControllable = true;
+        player.bVisible = true;
+        this._spawnRespawnSmoke(spawnX, spawnY);
+    }
+
+    /**
+     * Spawn a cloud of exhaust particles around the respawn point.
+     * Each particle drifts upward with a slight anti-gravity acceleration.
+     */
+    private _spawnRespawnSmoke(cx: number, cy: number): void {
+        for (let i = 0; i < 12; i++) {
+            const ox = (Math.random() - 0.5) * 32;
+            const oy = (Math.random() - 0.5) * 32;
+            const smoke = this.createFairy(
+                this._sprites,
+                'spr_fire',
+                new WDExhaust(cx + ox, cy + oy)
+            );
+            smoke.aAnimations[0].nFrameDuration = 15;
+            smoke.oFlight.vSpeed.set((Math.random() - 0.5) * 0.7, -(Math.random() * 1.5 + 0.2));
+            smoke.oFlight.vAccel.set(0, -0.03);
+            smoke.nTime = 60;
+            // smoke.setScale(1 + Math.random() * 0.75);
         }
     }
 
@@ -309,6 +391,7 @@ export class WDGame extends FairyEngine {
             return;
         }
         shooter.store.state.energy -= projectile.state.cost;
+        shooter.store.state.fireCount++;
         this.createFairy(this._sprites, 'spr_fire', projectile);
         projectile.oObservatory.attach(
             'fire',
@@ -692,6 +775,12 @@ export class WDGame extends FairyEngine {
             }
             if (player.store.dirty.has('hitPoints') && this._hpBarEls[i]) {
                 this._hpBarEls[i]!.style.width = player.store.state.hitPoints + '%';
+            }
+            if ((player.store.dirty.has('fireCount') || player.store.dirty.has('enemyHit')) && this._precisionEls[i]) {
+                const { fireCount, enemyHit } = player.store.state;
+                this._precisionEls[i]!.textContent = String(
+                    fireCount > 0 ? Math.floor((100 * enemyHit) / fireCount) : 0
+                );
             }
             player.store.validate();
         }

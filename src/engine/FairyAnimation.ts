@@ -110,6 +110,7 @@ export class FairyAnimation {
             }
             case LoopType.Forward: {
                 this.nLoopDirection = 1;
+                this.nLoopFinalFrame = this.nFrameCount - 1;
                 this._loopHandler = () => this._proceedLoopForward();
                 break;
             }

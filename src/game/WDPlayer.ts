@@ -100,6 +100,8 @@ export class WDPlayer extends Fairy<WDPlayerEvents> {
         shieldTime: 0,
         powerBoostTime: 0,
         plasmaBallCount: 0,
+        fireCount: 0,
+        enemyHit: 0,
     });
 
     /**

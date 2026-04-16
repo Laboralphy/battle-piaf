@@ -1,0 +1,37 @@
+{
+    "wdbob_land0_z2": {
+        "image": "assets/images/land-tiles/wdbob_land0_z2.png",
+        "animations": {
+            "K.": {
+                "start": 20,
+                "count": 3,
+                "loop": {
+                    "type": 3,
+                    "inc": 1,
+                    "dur": 20,
+                    "count": 0
+                }
+            },
+            "N.": {
+                "start": 23,
+                "count": 2,
+                "loop": {
+                    "type": 3,
+                    "inc": 1,
+                    "dur": 64,
+                    "count": 0
+                }
+            },
+            "Q.": {
+                "start": 26,
+                "count": 3,
+                "loop": {
+                    "type": 3,
+                    "inc": 1,
+                    "dur": 8,
+                    "count": 0
+                }
+            }
+        }
+    }
+}

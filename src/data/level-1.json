@@ -1,6 +1,7 @@
 {
-    "tileset": "assets/images/land-tiles/wdbob_land0_z2.png",
+    "tileset": "wdbob_land0_z2",
     "background": "assets/images/backgrounds/bg-jail.png",
+    "music": "ht-main-theme",
     "map": [
         "2#2#2#2#2#2#2#2#2#2#2#2#2#2#2#2#2#2#2#2#",
         "2#0.G.0.0.0.0.G.0.2#2#0.G.0.0.0.0.G.0.2#",

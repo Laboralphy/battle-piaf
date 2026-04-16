@@ -1,6 +1,7 @@
 # Artifact directories
 dist/*
 public/dist/*
+public/assets/musics/*
 
 # Environment variables
 .env

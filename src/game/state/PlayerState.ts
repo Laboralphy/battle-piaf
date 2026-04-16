@@ -11,4 +11,6 @@ export type PlayerState = {
     shieldTime: number;
     powerBoostTime: number;
     plasmaBallCount: number;
+    fireCount: number;
+    enemyHit: number;
 };

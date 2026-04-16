@@ -1,7 +1,7 @@
 import { createApp } from 'petite-vue';
 import level0 from '../data/level-0.json';
 import level1 from '../data/level-1.json';
-import type { LevelData } from '../data/levels';
+import type { LevelData } from '../game/levels';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 

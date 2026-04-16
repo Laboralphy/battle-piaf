@@ -174,12 +174,11 @@ html, body {
   white-space: nowrap;
 }
 
-.pf-weapon {
-  color: #f5c842;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.pf-score > span.value {
+    color: #ff9;
+    white-space: nowrap;
 }
+
 
 /* Controls line */
 .pf-keys {

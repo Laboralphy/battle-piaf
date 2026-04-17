@@ -8,7 +8,7 @@ import { WDPlayer } from './WDPlayer.js';
 export const enum CrateBonus {
     HEAL = 0,
     SHIELD = 1,
-    BOOST = 2,
+    POWERUP = 2,
     MULTICRATE = 3,
 }
 

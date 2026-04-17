@@ -14,5 +14,9 @@
     "grenade": {
         "damage": 24,
         "cost": 50
+    },
+    "flame": {
+        "damage": 18,
+        "cost": 0
     }
 }

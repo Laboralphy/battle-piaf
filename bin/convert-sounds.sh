@@ -21,7 +21,7 @@ for src in "${flac_files[@]}"; do
 
   echo "Converting: $name"
 
-  ffmpeg -y -i "$src" -c:a libvorbis -q:a 6             "$OGG_DIR/$name.ogg" -loglevel warning
+  ffmpeg -y -i "$src" -c:a libvorbis -q:a 6 "$OGG_DIR/$name.ogg" -loglevel warning
   ffmpeg -y -i "$src" -c:a libmp3lame -q:a 2 -id3v2_version 3 "$MP3_DIR/$name.mp3" -loglevel warning
 
   echo "  → $name.ogg"

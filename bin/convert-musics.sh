@@ -1,12 +1,36 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+MOD_DIR="$(dirname "$0")/../public/assets/musics/mods"
 WAV_DIR="$(dirname "$0")/../public/assets/musics/wav"
 OGG_DIR="$(dirname "$0")/../public/assets/musics/ogg"
 MP3_DIR="$(dirname "$0")/../public/assets/musics/mp3"
 
-mkdir -p "$OGG_DIR" "$MP3_DIR"
-rm -f "$OGG_DIR"/*.ogg "$MP3_DIR"/*.mp3
+convertModulesToPCM() {
+    pushd .
+    if [ ! -d $MOD_DIR ]
+    then
+        echo "$MOD_DIR does not exist"
+        exit 1
+    fi
+    cd $MOD_DIR
+    for i in $(ls *.MOD *.mod *.XM *.xm *.S3M *.s3m *.IT *.it)
+    do
+        ibase="${i%.*}"
+        imin="$(echo $ibase | tr '[:upper:]' '[:lower:]')"
+        echo "Rendering: $ibase"
+        openmpt123 -q --no-progress --render $i
+        mv $i.wav ../wav/$imin.wav
+    done
+    popd
+}
+
+# Empty output dirs
+mkdir -p "$OGG_DIR" "$MP3_DIR" "$WAV_DIR"
+rm -f "$OGG_DIR"/*.ogg "$MP3_DIR"/*.mp3 "$WAV_DIR"/*.wav
+
+# Convert modules to wav
+convertModulesToPCM
 
 shopt -s nullglob
 wav_files=("$WAV_DIR"/*.wav)

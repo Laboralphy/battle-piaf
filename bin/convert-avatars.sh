@@ -7,8 +7,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-SRC_DIR="$PROJECT_DIR/avatars/image-sources"
-OUT_DIR="$PROJECT_DIR/avatars/image-output"
+SRC_DIR="$PROJECT_DIR/materials/avatars/image-sources"
+OUT_DIR="$PROJECT_DIR/materials/avatars/image-output"
 
 mkdir -p "$OUT_DIR"
 

@@ -226,14 +226,14 @@ export class Fairy<TEvents extends FairyBaseEvents = FairyBaseEvents> implements
         if (!this.bVisible || !this.oImage || !this.oContext || !this.oAnimation) {
             return;
         }
-        const sx = Math.floor(
-            (this.oAnimation.nFrameIndex + this.oAnimation.nFrameStart) * this.nWidth +
-                this.oAnimation.xSrc
-        );
+        const absoluteFrame = this.oAnimation.nFrameIndex + this.oAnimation.nFrameStart;
+        const cols = Math.floor(this.oImage.naturalWidth / this.nWidth);
+        const sx = (absoluteFrame % cols) * this.nWidth + this.oAnimation.xSrc;
+        const sy = Math.floor(absoluteFrame / cols) * this.nHeight + this.oAnimation.ySrc;
         this.oContext.drawImage(
             this.oImage,
             sx,
-            this.oAnimation.ySrc,
+            sy,
             this.nWidth,
             this.nHeight,
             Math.floor(this.oFlight.vPosition.x - this.vReference.x),

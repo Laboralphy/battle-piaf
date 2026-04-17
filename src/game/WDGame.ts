@@ -23,7 +23,11 @@ import { WDPlasmaBall } from './WDPlasmaBall.js';
 import { WDPlasmaImpact } from './WDPlasmaImpact.js';
 import { CrateBonus, WDCrate } from './WDCrate.js';
 import { WDBonusIndicator } from './WDBonusIndicator.js';
+import { WDSkull } from './WDSkull.js';
+import { WDSkullGrenade } from './WDSkullGrenade.js';
+import { WDFlame } from './WDFlame.js';
 import { TILE_DATA } from './tile-animations';
+import LOOT_DATA from '../data/loot.json';
 
 /**
  * Keyboard bindings for each player.
@@ -54,6 +58,18 @@ const CRATE_TIME_TO_SPAWN = 10 * TICKS_PER_SECOND;
 const CRATE_SPAWN_VARIANCE = 5 * TICKS_PER_SECOND;
 /** How long a crate stays on screen before disappearing on its own, in ticks. */
 const CRATE_TIME_TO_LIVE = 15 * TICKS_PER_SECOND;
+/** Minimum delay before the skull appears (inactive → active), in ticks. */
+const SKULL_DEACTIVATION_MIN_DURATION = 30 * TICKS_PER_SECOND;
+/** Maximum delay before the skull appears (inactive → active), in ticks. */
+const SKULL_DEACTIVATION_MAX_DURATION = 180 * TICKS_PER_SECOND;
+/** How long the skull stays on screen (active → inactive), in ticks. */
+const SKULL_ACTIVATION_DURATION = 30 * TICKS_PER_SECOND;
+
+/** Probability (0–1) that a missile/grenade explosion spawns a WDFlame. */
+const FLAME_CHANCE = 0.33;
+/** How long a grounded flame stays alive, in ticks (~4 s at 60 Hz). */
+const FLAME_DURATION = 8 * TICKS_PER_SECOND;
+
 /** Vertical pixel difference above which the higher player throws a grenade instead of a bullet. */
 const GRENADE_HEIGHT_THRESHOLD = 96;
 /** Duration of the death sequence in ticks (1 s at 60 Hz). */
@@ -103,6 +119,13 @@ export class WDGame extends FairyEngine {
     /** Countdown to the next crate spawn (ticks). */
     private _crateTimer = 0;
 
+    /** Currently active skull sprite, or null when inactive. */
+    private _skull: WDSkull | null = null;
+    /** True while the skull is on screen. */
+    private _skullActive = false;
+    /** Countdown to the next skull state change (spawn or removal), in ticks. */
+    private _skullTimer = 0;
+
     // ── Resource loading ─────────────────────────────────────────────────────
 
     /** Load all required sprite-sheet and background images. */
@@ -140,7 +163,10 @@ export class WDGame extends FairyEngine {
         ]);
         this._scoreEls = [document.getElementById('score_0'), document.getElementById('score_1')];
         this._hpBarEls = [document.getElementById('hp-bar-0'), document.getElementById('hp-bar-1')];
-        this._precisionEls = [document.getElementById('precision_0'), document.getElementById('precision_1')];
+        this._precisionEls = [
+            document.getElementById('precision_0'),
+            document.getElementById('precision_1'),
+        ];
 
         for (let i = 0; i < 2; i++) {
             const p = this.createFairy(this._sprites, 'spr_pl', new WDPlayer(i)) as WDPlayer;
@@ -191,6 +217,7 @@ export class WDGame extends FairyEngine {
 
         this._crateSpawnPositions = this._buildCrateSpawnList();
         this._crateTimer = CRATE_TIME_TO_SPAWN;
+        this._skullTimer = this._randomSkullWaitDuration();
     }
 
     // ── Game running ─────────────────────────────────────────────────────────
@@ -208,6 +235,9 @@ export class WDGame extends FairyEngine {
                 this._updateDeathSequence(player);
             } else if (this._respawnTimers[player.nCode] >= 0) {
                 this._updateRespawnTimer(player);
+                for (const p of this._players) {
+                    p.store.state.hitPoints = p.store.state.vitality;
+                }
             } else {
                 player.updateState(this._input);
                 if (player.bJustJumped) {
@@ -240,6 +270,7 @@ export class WDGame extends FairyEngine {
         }
 
         this._updateCrate();
+        this._updateSkull();
         this._updateScoreDisplay();
         return null;
     }
@@ -364,6 +395,7 @@ export class WDGame extends FairyEngine {
      * Each particle drifts upward with a slight anti-gravity acceleration.
      */
     private _spawnRespawnSmoke(cx: number, cy: number): void {
+        this._sounds.play('spawn');
         for (let i = 0; i < 12; i++) {
             const ox = (Math.random() - 0.5) * 32;
             const oy = (Math.random() - 0.5) * 32;
@@ -376,7 +408,6 @@ export class WDGame extends FairyEngine {
             smoke.oFlight.vSpeed.set((Math.random() - 0.5) * 0.7, -(Math.random() * 1.5 + 0.2));
             smoke.oFlight.vAccel.set(0, -0.03);
             smoke.nTime = 60;
-            // smoke.setScale(1 + Math.random() * 0.75);
         }
     }
 
@@ -583,6 +614,43 @@ export class WDGame extends FairyEngine {
             } else if (other instanceof WDCrate && !other.bDead) {
                 // Crate pickup: notify the crate (emits 'picked'), crate marks itself dead.
                 other.pickup(player);
+            } else if (other instanceof WDSkullGrenade && !other.bDead) {
+                // Skull grenade hit: apply fixed damage (no score awarded), shock, explode.
+                const shieldActive = player.store.state.shield > 0;
+                const damage = Math.ceil(other.damage * (shieldActive ? 0.1 : 1));
+                player.store.state.hitPoints = Math.max(0, player.store.state.hitPoints - damage);
+                this._sounds.play('hurt');
+                flight.vShock.set(other.oFlight.vSpeed);
+                flight.vShock.y -= 2;
+                this.createFairy(
+                    this._sprites,
+                    'spr_fire',
+                    new WDExplosion(other.oFlight.vPosition.x, other.oFlight.vPosition.y)
+                );
+                this._sounds.play('explosion-missile');
+                other.bDead = true;
+                this._maybeSpawnFlame(other.oFlight.vPosition.x, other.oFlight.vPosition.y);
+                if (player.store.state.hitPoints <= 0 && this._deathTimers[player.nCode] < 0) {
+                    this._startDeathSequence(player);
+                }
+            } else if (other instanceof WDFlame && !other.bDead) {
+                // Flame contact: fixed damage, knock back away from the flame, explode.
+                const shieldActive = player.store.state.shield > 0;
+                const damage = Math.ceil(other.damage * (shieldActive ? 0.1 : 1));
+                player.store.state.hitPoints = Math.max(0, player.store.state.hitPoints - damage);
+                this._sounds.play('hurt');
+                const shockX = player.oFlight.vPosition.x >= other.oFlight.vPosition.x ? 3 : -3;
+                flight.vShock.set(shockX, -4);
+                this.createFairy(
+                    this._sprites,
+                    'spr_fire',
+                    new WDExplosion(other.oFlight.vPosition.x, other.oFlight.vPosition.y)
+                );
+                this._sounds.play('explosion-missile');
+                other.bDead = true;
+                if (player.store.state.hitPoints <= 0 && this._deathTimers[player.nCode] < 0) {
+                    this._startDeathSequence(player);
+                }
             }
         }
     }
@@ -600,6 +668,9 @@ export class WDGame extends FairyEngine {
         this.createFairy(this._sprites, 'spr_fire', ex);
         fire.bDead = true;
         this._sounds.play(fire.soundOnExplosion);
+        if (fire instanceof WDMissile || fire instanceof WDGrenade) {
+            this._maybeSpawnFlame(x, y);
+        }
     }
 
     /**
@@ -655,16 +726,24 @@ export class WDGame extends FairyEngine {
         }
         const { col, row } =
             this._crateSpawnPositions[Math.floor(Math.random() * this._crateSpawnPositions.length)];
-        const roll = Math.random();
-        let bonus: CrateBonus;
-        if (allowMultiCrate && roll < 0.10) {
-            bonus = CrateBonus.MULTICRATE;
-        } else if (roll < 0.35) {
-            bonus = CrateBonus.SHIELD;
-        } else if (roll < 0.60) {
-            bonus = CrateBonus.BOOST;
-        } else {
-            bonus = CrateBonus.HEAL;
+        const lootEntries: Array<[CrateBonus, number]> = [
+            [CrateBonus.MULTICRATE, LOOT_DATA.MULTICRATE],
+            [CrateBonus.SHIELD, LOOT_DATA.SHIELD],
+            [CrateBonus.POWERUP, LOOT_DATA.POWERUP],
+            [CrateBonus.HEAL, LOOT_DATA.HEAL],
+        ];
+        const eligible = allowMultiCrate
+            ? lootEntries
+            : lootEntries.filter(([b]) => b !== CrateBonus.MULTICRATE);
+        const total = eligible.reduce((sum, [, w]) => sum + w, 0);
+        let remaining = Math.random() * total;
+        let bonus: CrateBonus = eligible[eligible.length - 1][0];
+        for (const [b, w] of eligible) {
+            remaining -= w;
+            if (remaining <= 0) {
+                bonus = b;
+                break;
+            }
         }
         const crate = this.createFairy(this._sprites, 'spr_fire', new WDCrate(bonus));
         crate.placeOnTile(col, row);
@@ -695,7 +774,7 @@ export class WDGame extends FairyEngine {
                         this._bonusShield(player);
                         break;
                     }
-                    case CrateBonus.BOOST: {
+                    case CrateBonus.POWERUP: {
                         this._bonusBoost(player);
                         break;
                     }
@@ -775,12 +854,235 @@ export class WDGame extends FairyEngine {
                 crate.bDead = true;
             }
         }
-        this._activeCrates = this._activeCrates.filter(c => !c.bDead);
+        this._activeCrates = this._activeCrates.filter((c) => !c.bDead);
 
         if (--this._crateTimer <= 0) {
             this._spawnCrate();
             this._crateTimer =
                 CRATE_TIME_TO_SPAWN + Math.floor((Math.random() * 2 - 1) * CRATE_SPAWN_VARIANCE);
+        }
+    }
+
+    // ── Flame spawning ────────────────────────────────────────────────────────
+
+    /**
+     * Always spawn a WDFlame at (x, y) with optional initial velocity.
+     * Attaches 'move' (land collision) and 'smoke' observers.
+     */
+    private _spawnFlame(x: number, y: number, vx?: number, vy?: number): void {
+        const flame = this.createFairy(
+            this._sprites,
+            'spr_fire',
+            new WDFlame(x, y, vx, vy)
+        ) as WDFlame;
+        flame.oObservatory.attach(
+            'move',
+            new Observer(this, (sender: Fairy, flight: FairyFlight) =>
+                this._flameLandCollision(sender as WDFlame, flight)
+            )
+        );
+        flame.oObservatory.attach(
+            'smoke',
+            new Observer(this, (_sender, { x: sx, y: sy }) => {
+                const puff = this.createFairy(this._sprites, 'spr_fire', new WDExhaust(sx, sy));
+                puff.oFlight.vAccel.set(0, -0.2);
+            })
+        );
+    }
+
+    /**
+     * With probability FLAME_CHANCE, spawn a WDFlame at (x, y) with default
+     * explosion-style random velocity.
+     */
+    private _maybeSpawnFlame(x: number, y: number): void {
+        if (Math.random() < FLAME_CHANCE) {
+            this._spawnFlame(x, y);
+        }
+    }
+
+    /**
+     * 'move' observer for WDFlame.
+     * While airborne, stops the flame on semi-solid or fully solid tiles and
+     * switches it to mortal mode (FLAME_DURATION ticks).
+     * Kills the flame immediately if it falls off the bottom of the arena.
+     */
+    private _flameLandCollision(flame: WDFlame, flight: FairyFlight): void {
+        if (flame.bGrounded) {
+            return;
+        }
+        if (flight.vNewPosition.y > 480) {
+            flame.bDead = true;
+            return;
+        }
+        if (flight.vNewPosition.y > flight.vPosition.y) {
+            const bottomY = flight.vNewPosition.y + 6;
+            const tileX1 = Math.floor(flight.vNewPosition.x - 6) >> 5;
+            const tileX2 = Math.floor(flight.vNewPosition.x + 6) >> 5;
+            const tileY = Math.floor(bottomY) >> 5;
+            const subY = Math.floor(bottomY) % 32;
+            if (subY < 16) {
+                const code = Math.max(
+                    this._land.getTileCode(tileX1, tileY),
+                    this._land.getTileCode(tileX2, tileY)
+                );
+                if (code >= 1) {
+                    flight.vNewPosition.y = (tileY << 5) - 7;
+                    flight.vNewSpeed.set(0, 0);
+                    flight.vNewAccel.set(0, 0);
+                    flame.bGrounded = true;
+                    flame.bMortal = true;
+                    flame.nTime = FLAME_DURATION;
+                }
+            }
+        }
+    }
+
+    // ── Skull lifecycle ───────────────────────────────────────────────────────
+
+    /** Pick a random wait duration between the min and max deactivation bounds. */
+    private _randomSkullWaitDuration(): number {
+        return (
+            SKULL_DEACTIVATION_MIN_DURATION +
+            Math.floor(
+                Math.random() * (SKULL_DEACTIVATION_MAX_DURATION - SKULL_DEACTIVATION_MIN_DURATION)
+            )
+        );
+    }
+
+    /**
+     * Called every tick.
+     * Counts down `_skullTimer`; on expiry either spawns or removes the skull
+     * and reschedules the opposite transition.
+     */
+    private _updateSkull(): void {
+        if (--this._skullTimer > 0) {
+            return;
+        }
+        if (this._skullActive) {
+            if (this._skull) {
+                this._spawnRespawnSmoke(
+                    this._skull.oFlight.vPosition.x,
+                    this._skull.oFlight.vPosition.y
+                );
+                this._skull.bDead = true;
+                this._skull = null;
+            }
+            this._skullActive = false;
+            this._skullTimer = this._randomSkullWaitDuration();
+        } else {
+            this._spawnSkull();
+            this._skullActive = true;
+            this._skullTimer = SKULL_ACTIVATION_DURATION;
+        }
+    }
+
+    /** Instantiate a WDSkull, place it in the upper patrol zone, and attach observers. */
+    private _spawnSkull(): void {
+        const variant = Math.random() < 0.5 ? 0 : 1;
+        const skull = this.createFairy(this._sprites, 'spr_fire', new WDSkull(variant)) as WDSkull;
+        skull.oFlight.vPosition.set(
+            96 + Math.floor(Math.random() * (640 - 192)),
+            80 + Math.floor(Math.random() * 80)
+        );
+        this._spawnRespawnSmoke(skull.oFlight.vPosition.x, skull.oFlight.vPosition.y);
+        skull.oObservatory.attach(
+            'move',
+            new Observer(this, (sender: Fairy, flight: FairyFlight) =>
+                this._skullWallCollision(sender as WDSkull, flight)
+            )
+        );
+        skull.oObservatory.attach(
+            'throw',
+            new Observer(this, (_sender, { x, y, face }) => this._skullThrow(x, y, face))
+        );
+        skull.oObservatory.attach(
+            'drop',
+            new Observer(this, (_sender, { x, y }) => this._skullDrop(x, y))
+        );
+        this._skull = skull;
+    }
+
+    /** Drop a WDFlame directly below the skull with no initial speed. */
+    private _skullDrop(x: number, y: number): void {
+        this._sounds.play('shoot-flame');
+        this._spawnFlame(x, y, 0, 0);
+    }
+
+    /**
+     * 'move' observer for the skull.
+     * Reverses `nFace` (and zeroes horizontal speed for this tick) when the skull
+     * would enter a fully solid tile or leave the arena boundaries.
+     * Clamps the vertical position to the upper patrol zone.
+     */
+    private _skullWallCollision(skull: WDSkull, flight: FairyFlight): void {
+        // Arena horizontal boundaries.
+        if (flight.vNewPosition.x < 56) {
+            flight.vNewPosition.x = 56;
+            flight.vNewSpeed.x = 0;
+            skull.nFace = 1;
+        } else if (flight.vNewPosition.x > 584) {
+            flight.vNewPosition.x = 584;
+            flight.vNewSpeed.x = 0;
+            skull.nFace = -1;
+        } else {
+            // Tile wall check: probe one pixel past the leading half-width (8 px).
+            const tileY = Math.floor(flight.vNewPosition.y) >> 5;
+            if (skull.nFace > 0) {
+                const tileX = Math.floor(flight.vNewPosition.x + 9) >> 5;
+                if (this._land.getTileCode(tileX, tileY) >= 2) {
+                    skull.nFace = -1;
+                    flight.vNewSpeed.x = 0;
+                }
+            } else {
+                const tileX = Math.floor(flight.vNewPosition.x - 9) >> 5;
+                if (this._land.getTileCode(tileX, tileY) >= 2) {
+                    skull.nFace = 1;
+                    flight.vNewSpeed.x = 0;
+                }
+            }
+        }
+
+        // Vertical patrol zone clamp (upper section of the level).
+        if (flight.vNewPosition.y < 72) {
+            flight.vNewPosition.y = 72;
+        } else if (flight.vNewPosition.y > 200) {
+            flight.vNewPosition.y = 200;
+        }
+    }
+
+    /** Spawn a WDSkullGrenade at the skull's position and attach a land-collision observer. */
+    private _skullThrow(x: number, y: number, face: number): void {
+        this._sounds.play('shoot-grenade');
+        const grenade = this.createFairy(
+            this._sprites,
+            'spr_fire',
+            new WDSkullGrenade(x, y, face)
+        ) as WDSkullGrenade;
+        grenade.oObservatory.attach(
+            'move',
+            new Observer(this, (sender: Fairy) =>
+                this._checkSkullGrenadeLandCollision(sender as WDSkullGrenade)
+            )
+        );
+    }
+
+    /**
+     * 'move' observer for skull grenades.
+     * Explodes the grenade when its centre enters a fully solid tile (code ≥ 2).
+     */
+    private _checkSkullGrenadeLandCollision(grenade: WDSkullGrenade): void {
+        if (grenade.bDead) {
+            return;
+        }
+        const rect = grenade.oBoundingShape as FairyCollisionRect;
+        const [p1, p2] = rect.getPoints();
+        const cx = (p1.x + p2.x) / 2;
+        const cy = (p1.y + p2.y) / 2;
+        if (this._land.getTileCode(Math.floor(cx) >> 5, Math.floor(cy) >> 5) >= 2) {
+            this.createFairy(this._sprites, 'spr_fire', new WDExplosion(cx, cy));
+            this._sounds.play('explosion-missile');
+            grenade.bDead = true;
+            this._maybeSpawnFlame(cx, cy);
         }
     }
 
@@ -799,7 +1101,10 @@ export class WDGame extends FairyEngine {
             if (player.store.dirty.has('hitPoints') && this._hpBarEls[i]) {
                 this._hpBarEls[i]!.style.width = player.store.state.hitPoints + '%';
             }
-            if ((player.store.dirty.has('fireCount') || player.store.dirty.has('enemyHit')) && this._precisionEls[i]) {
+            if (
+                (player.store.dirty.has('fireCount') || player.store.dirty.has('enemyHit')) &&
+                this._precisionEls[i]
+            ) {
                 const { fireCount, enemyHit } = player.store.state;
                 this._precisionEls[i]!.textContent = String(
                     fireCount > 0 ? Math.floor((100 * enemyHit) / fireCount) : 0

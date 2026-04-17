@@ -8,7 +8,7 @@ import { CrateBonus } from './WDCrate.js';
 const BONUS_TILE: Record<CrateBonus, number> = {
     [CrateBonus.HEAL]: 24,
     [CrateBonus.SHIELD]: 25,
-    [CrateBonus.BOOST]: 26,
+    [CrateBonus.POWERUP]: 26,
     [CrateBonus.MULTICRATE]: 27,
 };
 
@@ -20,7 +20,7 @@ const BONUS_TILE: Record<CrateBonus, number> = {
  * Sprite sheet: `wdspr_fire_z2.png`, 16×16.
  *   tile 24 — heal
  *   tile 25 — shield
- *   tile 26 — boost
+ *   tile 26 — powerup
  */
 export class WDBonusIndicator extends Fairy {
     /**

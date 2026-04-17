@@ -64,7 +64,7 @@ export class WDFlame extends Fairy<WDFlameEvents> {
 
         this.oFlight.vPosition.set(x, y);
         // Random horizontal spread, always launched upward.
-        this.oFlight.vSpeed.set(Math.random() * 2 - 1, -1);
+        this.oFlight.vSpeed.set(vx, vy);
         // Same gravity as players.
         this.oFlight.vAccel.set(0, 0.25);
     }

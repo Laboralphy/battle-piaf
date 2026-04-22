@@ -281,15 +281,15 @@ export class FairyEngine {
     }
 
     /**
-     * Advance all layers by one tick and render every other tick.
-     * Rendering is skipped on even ticks to stay near 30 fps on 60 Hz displays.
+     * Advance all layers by one tick and render every other tick (~30 fps on 60 Hz displays).
+     * Physics and animation advancement always run at full tick rate; the throttle
+     * only reduces canvas draw calls for compatibility with slower hardware.
      */
     private _updateFrame(): void {
         this._frame++;
         for (const layer of this._layers) {
             layer.proceed();
             if (this._frame & 1) {
-                // render every other frame (~30fps at 60Hz)
                 layer.render();
             }
         }

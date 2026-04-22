@@ -245,7 +245,8 @@ export class WDGame extends FairyEngine {
             this._land,
             PLAYER_KEYS[1],
             { ...PROFILE_HUNTER, initialState: 'chase-debug' }, // swap for PROFILE_BASIC, PROFILE_HUNTER, PROFILE_BERSERKER, PROFILE_CAUTIOUS…
-            this._text.canvas
+            this._text.canvas,
+            () => this._activeCrates
         );
     }
 

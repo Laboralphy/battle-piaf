@@ -1,15 +1,18 @@
 import { WDPlayer } from '../WDPlayer.js';
+import { WDCrate } from '../WDCrate.js';
 import { FairyMatrix } from '../../engine/FairyMatrix.js';
 import { NavGraph } from './navigation/NavGraph.js';
 import { NavQuery } from './navigation/NavQuery.js';
 import { NavTopology } from './navigation/NavTopology.js';
-import { NavEdge } from './navigation/NavEdge.js';
 import { AIInput } from './AIInput.js';
 import { AIProfile } from './AIProfile.js';
 
 /**
  * Shared context object passed to every AI state each tick.
  * States read world data from it and write movement decisions to `input`.
+ *
+ * Path and per-state data are passed between states via constructor injection,
+ * not stored here. This keeps the context lean and ownership explicit.
  */
 export interface AIContext {
     /** The AI-controlled player sprite. */
@@ -26,15 +29,10 @@ export interface AIContext {
     query: NavQuery;
     /** Platform topology derived from the nav graph. */
     topology: NavTopology;
-    /**
-     * Current planned path as an ordered list of edges to traverse.
-     * States consume edges from the front as waypoints are reached.
-     */
-    path: NavEdge[];
-    /** Ticks remaining before the path is replanned. */
-    replanCooldown: number;
     /** Active behavior profile (set at construction, never changed). */
     profile: AIProfile;
-    /** USe this to display navgraph information */
+    /** Returns the list of currently live crates. Called each tick so it always reflects the latest state. */
+    crates: () => readonly WDCrate[];
+    /** Optional canvas for NavGraph debug overlay. */
     debugCanvas?: HTMLCanvasElement;
 }

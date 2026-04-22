@@ -255,6 +255,7 @@ function makeApp() {
                 tileset: TILESHEETS[this.tileSheet] ?? '',
                 background: BACKGROUNDS[this.background] ?? '',
                 map: encodeLevel(this.grid),
+                music: '',
             };
             const json = JSON.stringify(levelData, null, 4) + '\n';
             const a = Object.assign(document.createElement('a'), {

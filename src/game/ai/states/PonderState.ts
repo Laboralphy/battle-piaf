@@ -1,31 +1,26 @@
 import { IState } from '../fsm/IState.js';
 import { AIContext } from '../AIContext.js';
-import { ChaseState } from './ChaseState.js';
-import { Platform } from '../navigation/Platform.js';
+// Circular imports resolved via live bindings (body-only references).
+import { ChaseChoosePlatformState } from './ChaseChoosePlatformState.js';
+import { tryCreateCrateChase } from './ChaseCrateState.js';
 
 /** Duration of the ponder pause in ticks (~0.5 s at 60 Hz). */
 const PONDER_DURATION = 30;
 
 /**
- * Ponder state: a deliberate pause where the drone steps back and reconsiders
- * its approach before committing to a new strategy.
+ * Ponder state: a deliberate pause before committing to a new station.
  *
- * Triggered by ChaseState when the target has not been reached after a timeout.
- *
- * Tactical logic:
- *   1. Determine which platform the opponent is currently on.
- *   2. If there are other platforms at the same height, pick the one closest to
- *      the drone and set it as the interim navigation goal (future: StationState).
- *   3. For now always fall back to a fresh ChaseState after the pause — the
- *      topology query result is stored on ctx for ChaseState to reuse once a
- *      proper positioning state is available.
+ * Triggered by ChaseProceedToPlatformState when the target has not been
+ * reached after a timeout, or by StationState when the opponent changes row.
+ * The drone stands still for PONDER_DURATION ticks, then hands off to
+ * ChaseChoosePlatformState which scores platforms and builds a fresh path.
  */
 export class PonderState implements IState<AIContext> {
     private _remaining = 0;
 
-    onEnter(ctx: AIContext): void {
+    onEnter(_ctx: AIContext): void {
         this._remaining = PONDER_DURATION;
-        this._analyse(ctx);
+        console.log('ponder state', Date.now());
     }
 
     onUpdate(ctx: AIContext): IState<AIContext> | null {
@@ -33,7 +28,7 @@ export class PonderState implements IState<AIContext> {
         ctx.input.releaseAll();
 
         if (this._remaining <= 0) {
-            return new ChaseState();
+            return this._nextState(ctx);
         }
 
         this._remaining--;
@@ -42,43 +37,7 @@ export class PonderState implements IState<AIContext> {
 
     onExit(_ctx: AIContext): void {}
 
-    /**
-     * Analyse the arena topology and log the tactical assessment.
-     * Future: set a ctx.targetPlatform that ChaseState / a new StationState
-     * will navigate toward instead of always heading directly at the opponent.
-     */
-    private _analyse(ctx: AIContext): void {
-        const { topology, opponent } = ctx;
-        const ox = opponent.oFlight.vPosition.x;
-        const oy = opponent.oFlight.vPosition.y;
-
-        const opponentPlatform = topology.platformAt(ox, oy);
-
-        if (!opponentPlatform) {
-            // Opponent is airborne — nothing useful to analyse right now.
-            return;
-        }
-
-        const peers = topology.platformsAtSameHeight(opponentPlatform);
-        if (peers.length === 0) {
-            // Opponent is on the only platform at this height — no alternative.
-            return;
-        }
-
-        // Pick the peer platform whose centre is closest to the drone.
-        const px = ctx.player.oFlight.vPosition.x;
-        let best: Platform | null = null;
-        let bestDist = Infinity;
-        for (const plat of peers) {
-            const dist = Math.abs(plat.centerX - px);
-            if (dist < bestDist) {
-                bestDist = dist;
-                best = plat;
-            }
-        }
-
-        // `best` is the tactically preferred platform at the opponent's height.
-        // TODO: navigate toward best.centerX instead of rushing at the opponent.
-        void best;
+    private _nextState(ctx: AIContext): IState<AIContext> {
+        return tryCreateCrateChase(ctx) ?? new ChaseChoosePlatformState();
     }
 }

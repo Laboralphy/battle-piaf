@@ -1,5 +1,6 @@
 import { Observer } from '../../core/Observer.js';
 import { WDPlayer, PlayerKeys } from '../WDPlayer.js';
+import { WDCrate } from '../WDCrate.js';
 import { FairyMatrix } from '../../engine/FairyMatrix.js';
 import { AIInput } from './AIInput.js';
 import { AIContext } from './AIContext.js';
@@ -9,8 +10,7 @@ import { IState } from './fsm/IState.js';
 import { NavGraph } from './navigation/NavGraph.js';
 import { NavQuery } from './navigation/NavQuery.js';
 import { NavTopology } from './navigation/NavTopology.js';
-import { ChaseState } from './states/ChaseState.js';
-import { ChaseDebugState } from './states/ChaseDebugState.js';
+import { ChaseChoosePlatformState } from './states/ChaseChoosePlatformState.js';
 import { BasicState } from './states/BasicState.js';
 import { NullState } from './states/NullState.js';
 import { EvadeState } from './states/EvadeState.js';
@@ -47,7 +47,8 @@ export class AIController {
         land: FairyMatrix,
         keys: PlayerKeys,
         profile: AIProfile,
-        debugCanvas: HTMLCanvasElement
+        debugCanvas: HTMLCanvasElement,
+        getCrates: () => WDCrate[] = () => []
     ) {
         this.input = new AIInput(keys);
 
@@ -65,9 +66,8 @@ export class AIController {
             graph,
             query: new NavQuery(),
             topology,
-            path: [],
-            replanCooldown: 0,
             profile,
+            crates: getCrates,
             debugCanvas,
         };
 
@@ -102,11 +102,9 @@ export class AIController {
             case 'basic': {
                 return new BasicState();
             }
-            case 'chase': {
-                return new ChaseState();
-            }
+            case 'chase':
             case 'chase-debug': {
-                return new ChaseDebugState();
+                return new ChaseChoosePlatformState();
             }
             default: {
                 throw new ReferenceError(`${profile.initialState} is unknown state`);

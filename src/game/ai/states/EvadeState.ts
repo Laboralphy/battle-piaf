@@ -1,6 +1,8 @@
 import { IState } from '../fsm/IState.js';
 import { AIContext } from '../AIContext.js';
-import { ChaseState } from './ChaseState.js';
+// Circular import: EvadeState → ChaseChoosePlatformState → ... → [via StationState]
+// Only referenced inside a method body.
+import { ChaseChoosePlatformState } from './ChaseChoosePlatformState.js';
 
 /**
  * Evade state: move away from the opponent for a profile-defined duration.
@@ -17,7 +19,7 @@ export class EvadeState implements IState<AIContext> {
 
     onUpdate(ctx: AIContext): IState<AIContext> | null {
         if (this._remaining <= 0) {
-            return new ChaseState();
+            return new ChaseChoosePlatformState();
         }
         this._remaining--;
 

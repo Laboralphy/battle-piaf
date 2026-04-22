@@ -12,17 +12,17 @@ export interface AIProfile {
     /** Initial FSM state. Replaces the former `usePaths` boolean. */
     readonly initialState: AIStrategy;
 
-    // ── Preferred horizontal distance (BasicState only) ────────────────────
+    // ── Preferred horizontal firing distance ───────────────────────────────
     /**
      * Minimum preferred horizontal distance from the opponent (px).
      * BasicState backs away when closer than this.
-     * Unused for 'null' and 'chase' strategies.
+     * StationState uses the midpoint of [min, max] to score candidate platforms.
      */
     readonly preferredDistMin: number;
     /**
      * Maximum preferred horizontal distance from the opponent (px).
      * BasicState moves closer when farther than this.
-     * Unused for 'null' and 'chase' strategies.
+     * StationState uses the midpoint of [min, max] to score candidate platforms.
      */
     readonly preferredDistMax: number;
 
@@ -98,14 +98,14 @@ export const PROFILE_BASIC: AIProfile = {
 
 /**
  * HUNTER — aggressive chaser.
- * Navigates toward the opponent with A*, attacks at close range,
+ * Stations itself 3–6 tiles from the opponent, fires at a steady pace,
  * and briefly evades after taking a hit.
  */
 export const PROFILE_HUNTER: AIProfile = {
     name: 'Hunter',
     initialState: 'chase',
-    preferredDistMin: 0,
-    preferredDistMax: 0,
+    preferredDistMin: 96,  // 3 tiles
+    preferredDistMax: 192, // 6 tiles
     attackRangeX: 120,
     attackRangeY: 48,
     disengageX: 160,
@@ -118,13 +118,13 @@ export const PROFILE_HUNTER: AIProfile = {
 
 /**
  * BERSERKER — maximum aggression.
- * Chases relentlessly, fires at a high rate, never evades.
+ * Stations itself close (2–5 tiles), fires at a high rate, never evades.
  */
 export const PROFILE_BERSERKER: AIProfile = {
     name: 'Berserker',
     initialState: 'chase',
-    preferredDistMin: 0,
-    preferredDistMax: 0,
+    preferredDistMin: 64,  // 2 tiles
+    preferredDistMax: 160, // 5 tiles
     attackRangeX: 180,
     attackRangeY: 96,
     disengageX: 240,
@@ -136,13 +136,14 @@ export const PROFILE_BERSERKER: AIProfile = {
 } as const;
 
 /**
- * CAUTIOUS — keeps distance, fires frequently, retreats when hit.
+ * CAUTIOUS — long-range sniper.
+ * Stations itself 5–9 tiles away, fires steadily, retreats when hit.
  */
 export const PROFILE_CAUTIOUS: AIProfile = {
     name: 'Cautious',
     initialState: 'chase',
-    preferredDistMin: 0,
-    preferredDistMax: 0,
+    preferredDistMin: 160, // 5 tiles
+    preferredDistMax: 288, // 9 tiles
     attackRangeX: 200,
     attackRangeY: 64,
     disengageX: 80,

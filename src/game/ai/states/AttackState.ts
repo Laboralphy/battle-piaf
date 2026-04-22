@@ -1,6 +1,8 @@
 import { IState } from '../fsm/IState.js';
 import { AIContext } from '../AIContext.js';
-import { ChaseState } from './ChaseState.js';
+// Circular import: AttackState → ChaseChoosePlatformState → ChaseProceedToPlatformState
+// → [via PonderState path]. Only referenced inside method bodies.
+import { ChaseChoosePlatformState } from './ChaseChoosePlatformState.js';
 
 /** Minimum ticks the AI stays in AttackState before reconsidering distance. */
 const MIN_ATTACK_TICKS = 30;
@@ -36,7 +38,7 @@ export class AttackState implements IState<AIContext> {
             this._stayTicks <= 0 &&
             (Math.abs(ox - px) > profile.disengageX || Math.abs(oy - py) > profile.disengageY)
         ) {
-            return new ChaseState();
+            return new ChaseChoosePlatformState();
         }
 
         input.releaseAll();

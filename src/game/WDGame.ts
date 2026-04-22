@@ -1,4 +1,6 @@
 import { Observer } from '../core/Observer.js';
+import { AIController } from './ai/AIController.js';
+import { PROFILE_HUNTER, PROFILE_NULL } from './ai/AIProfile.js';
 import { Vector2D } from '../core/Vector2D.js';
 import { FairyEngine } from '../engine/FairyEngine.js';
 import { FairyFlight } from '../engine/FairyFlight.js';
@@ -28,6 +30,7 @@ import { WDSkullGrenade } from './WDSkullGrenade.js';
 import { WDFlame } from './WDFlame.js';
 import { TILE_DATA } from './tile-animations';
 import LOOT_DATA from '../data/loot.json';
+import { FairyLayer } from '../engine/FairyLayer';
 
 /**
  * Keyboard bindings for each player.
@@ -83,6 +86,11 @@ const SCORE_DESTROYING_FOE = 1000;
 /** Delay before a dead player respawns, in ticks (~4 s at 60 Hz). */
 const RESPAWN_DELAY_TICKS = Math.trunc(2 * TICKS_PER_SECOND);
 
+const LEVEL_COLS = 20;
+const LEVEL_ROWS = 15;
+
+const SEMI_SOLID_TILE_SUB_Y = 16;
+
 /**
  * Main game class for Battle Piaf.
  * Extends `FairyEngine` and implements the four lifecycle hooks:
@@ -96,6 +104,9 @@ export class WDGame extends FairyEngine {
     private _land!: FairyMatrix;
     /** The sprite layer containing players, projectiles, and effects. */
     private _sprites!: Fairies;
+    /** The text layer is used to draw anything that is neither background, level nor sprite */
+    private _text!: FairyLayer;
+
     /** The two player sprites, indexed by player code (0 and 1). */
     private _players: WDPlayer[] = [];
 
@@ -118,6 +129,12 @@ export class WDGame extends FairyEngine {
     private _activeCrates: WDCrate[] = [];
     /** Countdown to the next crate spawn (ticks). */
     private _crateTimer = 0;
+
+    /**
+     * AI controller for player 1.
+     * Set to `null` to run in two-player mode (both players use keyboard input).
+     */
+    private _aiController: AIController | null = null;
 
     /** Currently active skull sprite, or null when inactive. */
     private _skull: WDSkull | null = null;
@@ -150,10 +167,11 @@ export class WDGame extends FairyEngine {
         this.setCanvas(canvas);
 
         this.createBackgroundLayer('bg', 640, 480);
-        this._land = this.createMatrixLayer('bob', 20, 15, 32, 32);
-        this.createCollider(20, 15, 32, 32);
+        this._land = this.createMatrixLayer('bob', LEVEL_COLS, LEVEL_ROWS, 32, 32);
+        this.createCollider(LEVEL_COLS, LEVEL_ROWS, 32, 32);
         this._sprites = this.createFairyLayer();
         this._sprites.setYMax(480);
+        this._text = this.createCanvasLayer();
 
         const levelData = LEVELS[0];
         this._buildLevel(levelData);
@@ -218,6 +236,21 @@ export class WDGame extends FairyEngine {
         this._crateSpawnPositions = this._buildCrateSpawnList();
         this._crateTimer = CRATE_TIME_TO_SPAWN;
         this._skullTimer = this._randomSkullWaitDuration();
+
+        // Single-player mode: player 1 is controlled by AI.
+        // Set to null here (and remove the AIController field) to restore two-player mode.
+        this._aiController = new AIController(
+            this._players[1],
+            this._players[0],
+            this._land,
+            PLAYER_KEYS[1],
+            { ...PROFILE_HUNTER, initialState: 'chase-debug' }, // swap for PROFILE_BASIC, PROFILE_HUNTER, PROFILE_BERSERKER, PROFILE_CAUTIOUS…
+            this._text.canvas
+        );
+    }
+
+    get textLayer(): FairyLayer {
+        return this._text;
     }
 
     // ── Game running ─────────────────────────────────────────────────────────
@@ -239,7 +272,12 @@ export class WDGame extends FairyEngine {
                     p.store.state.hitPoints = p.store.state.vitality;
                 }
             } else {
-                player.updateState(this._input);
+                if (player.nCode === 1 && this._aiController) {
+                    this._aiController.update();
+                    player.updateState(this._aiController.input);
+                } else {
+                    player.updateState(this._input);
+                }
                 if (player.bJustJumped) {
                     this._sounds.play('jump');
                     player.bJustJumped = false;
@@ -532,7 +570,7 @@ export class WDGame extends FairyEngine {
             // here are inside a wall and must not trigger floor detection.
             const bodyRow = tileY - 1;
 
-            if (subY < 16) {
+            if (subY < SEMI_SOLID_TILE_SUB_Y) {
                 const code1 =
                     this._land.getTileCode(tileX1, bodyRow) < 2
                         ? this._land.getTileCode(tileX1, tileY)
@@ -700,8 +738,8 @@ export class WDGame extends FairyEngine {
      */
     private _buildCrateSpawnList(): Array<{ col: number; row: number }> {
         const positions: Array<{ col: number; row: number }> = [];
-        for (let row = 1; row < 15; row++) {
-            for (let col = 0; col < 20; col++) {
+        for (let row = 1; row < LEVEL_ROWS; row++) {
+            for (let col = 0; col < LEVEL_COLS; col++) {
                 if (
                     this._land.getTileCode(col, row) >= 1 &&
                     this._land.getTileCode(col, row - 1) === 0

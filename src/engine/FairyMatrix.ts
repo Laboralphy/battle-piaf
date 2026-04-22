@@ -1,4 +1,5 @@
 import { FairyTile } from './FairyTile.js';
+import { IFairyLayer } from './IFairyLayer';
 
 /** Entry tracking a tile that has an active animation and needs per-tick redraws. */
 interface DynamicTileEntry {
@@ -17,7 +18,7 @@ interface DynamicTileEntry {
  * Supports optional sub- and over-matrices for parallax layers (scrolled at a
  * different factor than the main matrix).
  */
-export class FairyMatrix {
+export class FairyMatrix implements IFairyLayer {
     /** 2D grid of tiles, indexed as `_grid[row][col]`. */
     private _grid: FairyTile[][] = [];
     private _cols = 0;

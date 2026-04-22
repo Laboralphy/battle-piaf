@@ -6,12 +6,7 @@ import { FairyMatrix } from './FairyMatrix.js';
 import { FairyLayer } from './FairyLayer.js';
 import { Fairies } from './Fairies.js';
 import { Fairy } from './Fairy.js';
-
-/** A layer that can be ticked and rendered each frame. */
-interface ILayer {
-    proceed(): void;
-    render(): void;
-}
+import { IFairyLayer } from './IFairyLayer';
 
 /**
  * Base engine class.  Subclasses override the four state hooks to implement a game.
@@ -39,7 +34,7 @@ export class FairyEngine {
     /** 2D rendering context for the main canvas. */
     private _ctx: CanvasRenderingContext2D | null = null;
     /** Ordered list of renderable/tickable layers (background, tiles, sprites…). */
-    private _layers: ILayer[] = [];
+    private _layers: IFairyLayer[] = [];
     /** State machine that drives the engine lifecycle. */
     private _seq = new FairySequencer();
     /** `requestAnimationFrame` handle, or null when the loop is stopped. */
@@ -196,6 +191,19 @@ export class FairyEngine {
         fairies.setContext(this._ctx!);
         this._layers.push(fairies);
         return fairies;
+    }
+
+    /**
+     * Create a simple canvas, good for displayin anything that is not a sprite or tileset
+     */
+    createCanvasLayer(): FairyLayer {
+        this._requireCanvas();
+        const canvas = this._canvas!;
+        const layer = new FairyLayer();
+        layer.setSize(canvas.width, canvas.height);
+        layer.setContext(this._ctx!);
+        this._layers.push(layer);
+        return layer;
     }
 
     /**

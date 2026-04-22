@@ -1,9 +1,11 @@
+import { IFairyLayer } from './IFairyLayer';
+
 /**
  * A static background layer that renders a pre-drawn image onto the main canvas.
  * The image is drawn once into an internal off-screen canvas via `setImage`,
  * then composited onto the main canvas on every `render` call.
  */
-export class FairyLayer {
+export class FairyLayer implements IFairyLayer {
     /** Off-screen canvas holding the baked background image. */
     private _canvas: HTMLCanvasElement;
     /** Rendering context for the off-screen canvas. */
@@ -14,6 +16,10 @@ export class FairyLayer {
     constructor() {
         this._canvas = document.createElement('canvas');
         this._ctx = this._canvas.getContext('2d')!;
+    }
+
+    get canvas() {
+        return this._canvas;
     }
 
     /** Resize the off-screen canvas. Call before `setImage`. */

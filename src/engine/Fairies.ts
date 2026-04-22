@@ -1,4 +1,5 @@
 import { Fairy } from './Fairy.js';
+import { IFairyLayer } from './IFairyLayer';
 
 /**
  * Layer that owns and manages a collection of sprites.
@@ -8,7 +9,7 @@ import { Fairy } from './Fairy.js';
  * are picked up in the same tick because `for...of` on the live array sees
  * elements appended after iteration started.
  */
-export class Fairies {
+export class Fairies implements IFairyLayer {
     /** All currently live sprites in this layer. */
     private _fairies: Fairy[] = [];
     /** Canvas context shared with every fairy that is linked into this layer. */

@@ -55,10 +55,7 @@ export class WDSkullGrenade extends Fairy {
         this.setFlight(flight);
 
         // Hits both players.
-        this.setBoundingShape(
-            new FairyCollisionRect(new Vector2D(-6, -6), new Vector2D(5, 5)),
-            7
-        );
+        this.setBoundingShape(new FairyCollisionRect(new Vector2D(-6, -6), new Vector2D(5, 5)), 7);
 
         const animRight = new FairyAnimation();
         animRight.setFrameRange(7, 1);
@@ -77,9 +74,6 @@ export class WDSkullGrenade extends Fairy {
         flight.vPosition.set(x + face * 16, y + 4);
         // Arc launch with a slight random lateral spread (±0.75 px/tick).
         const spread = (Math.random() - 0.5) * 1.5;
-        flight.vSpeed.set(
-            GRENADE_INITIAL_X_SPEED * face + spread,
-            -GRENADE_INITIAL_Y_SPEED
-        );
+        flight.vSpeed.set(GRENADE_INITIAL_X_SPEED * face + spread, -GRENADE_INITIAL_Y_SPEED);
     }
 }

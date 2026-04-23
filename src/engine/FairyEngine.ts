@@ -62,6 +62,11 @@ export class FairyEngine {
         this._seq.addState('stateGameRunning', () => this._doGameRunning());
     }
 
+    /** Allow subclasses to register additional FSM states. */
+    protected addState(name: string, handler: () => string | null | undefined): void {
+        this._seq.addState(name, handler);
+    }
+
     // ── State machine internals ──────────────────────────────────────────────
 
     /** Run `stateEngineInitializing`, fire off async resource loading, advance to loading state. */

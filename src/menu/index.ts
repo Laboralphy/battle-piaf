@@ -1,6 +1,7 @@
 import { WDGame } from '../game/WDGame.js';
 import { Marquee } from './Marquee.js';
 import { MARQUEE_TEXT } from './text';
+import { LEVELS } from '../game/levels.js';
 
 function setActive(id: string, active: boolean): void {
     document.getElementById(id)?.setAttribute('data-active', String(active));
@@ -19,6 +20,6 @@ export function gameStart(): void {
     setActive('game-screen', true);
     setActive('controls', true);
 
-    const game = new WDGame();
+    const game = new WDGame({ aiControlled: true });
     game.start();
 }

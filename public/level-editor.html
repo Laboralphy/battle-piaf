@@ -181,8 +181,7 @@
 
     <span class="t-label">load:</span>
     <select v-model="loadSource">
-      <option value="level-0">level-0</option>
-      <option value="level-1">level-1</option>
+      <option v-for="key in levelKeys" :value="key">{{ key }}</option>
     </select>
     <button @click="loadLevel">Load</button>
     <button @click="clearLevel">Clear</button>

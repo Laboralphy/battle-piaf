@@ -1,5 +1,6 @@
 import level0 from '../data/level-0.json';
 import level1 from '../data/level-1.json';
+import level2 from '../data/level-2.json';
 
 export interface LevelData {
     tileset: string;
@@ -8,4 +9,4 @@ export interface LevelData {
     map: string[];
 }
 
-export const LEVELS: LevelData[] = [level0, level1];
+export const LEVELS: LevelData[] = [level0, level1, level2];

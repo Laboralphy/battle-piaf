@@ -1,6 +1,6 @@
 import { Observer } from '../core/Observer.js';
 import { AIController } from './ai/AIController.js';
-import { PROFILE_HUNTER, PROFILE_NULL } from './ai/AIProfile.js';
+import { PROFILE_HUNTER } from './ai/AIProfile.js';
 import { Vector2D } from '../core/Vector2D.js';
 import { FairyEngine } from '../engine/FairyEngine.js';
 import { FairyFlight } from '../engine/FairyFlight.js';
@@ -53,6 +53,10 @@ const PLAYER_KEYS = [
     },
 ] as const;
 
+export type WDGameOptions = {
+    aiControlled: boolean;
+};
+
 /** Assumed tick rate (RAF at ~60 Hz, proceed runs every tick). */
 const TICKS_PER_SECOND = 60;
 /** Base delay between two crate spawns, in ticks. */
@@ -62,9 +66,9 @@ const CRATE_SPAWN_VARIANCE = 5 * TICKS_PER_SECOND;
 /** How long a crate stays on screen before disappearing on its own, in ticks. */
 const CRATE_TIME_TO_LIVE = 15 * TICKS_PER_SECOND;
 /** Minimum delay before the skull appears (inactive → active), in ticks. */
-const SKULL_DEACTIVATION_MIN_DURATION = 30 * TICKS_PER_SECOND;
+const SKULL_DEACTIVATION_MIN_DURATION = 20 * TICKS_PER_SECOND;
 /** Maximum delay before the skull appears (inactive → active), in ticks. */
-const SKULL_DEACTIVATION_MAX_DURATION = 180 * TICKS_PER_SECOND;
+const SKULL_DEACTIVATION_MAX_DURATION = 60 * TICKS_PER_SECOND;
 /** How long the skull stays on screen (active → inactive), in ticks. */
 const SKULL_ACTIVATION_DURATION = 30 * TICKS_PER_SECOND;
 
@@ -85,6 +89,14 @@ const DEATH_EXPLOSION_COUNT = 6;
 const SCORE_DESTROYING_FOE = 1000;
 /** Delay before a dead player respawns, in ticks (~4 s at 60 Hz). */
 const RESPAWN_DELAY_TICKS = Math.trunc(2 * TICKS_PER_SECOND);
+/** Max ticks between two bullet/plasma hits for the auto-missile to trigger. */
+const TWO_HIT_MISSILE_DELAY = Math.trunc(3 * TICKS_PER_SECOND);
+/** Vertical speed (px/tick) of the angled bullets in triple-bullet mode. */
+const TRIPLE_BULLET_VSPEED = 2;
+/** Duration of a round, in ticks (~3 min at 60 Hz). */
+const ROUND_DURATION_TICKS = 3 * 60 * TICKS_PER_SECOND;
+/** How long the winner screen stays up before the next round starts, in ticks. */
+const ROUND_OVER_DISPLAY_TICKS = 5 * TICKS_PER_SECOND;
 
 const LEVEL_COLS = 20;
 const LEVEL_ROWS = 15;
@@ -122,6 +134,8 @@ export class WDGame extends FairyEngine {
     private _deathTimers: [number, number] = [-1, -1];
     /** Respawn countdown per player (-1 = not waiting, ≥0 = waiting to respawn). */
     private _respawnTimers: [number, number] = [-1, -1];
+    /** Monotonically increasing tick counter; used to time the bullet-hit streak window. */
+    private _gameTick = 0;
 
     /** Valid tile positions (col, row) where a crate can be spawned. Built once at init. */
     private _crateSpawnPositions: Array<{ col: number; row: number }> = [];
@@ -143,48 +157,83 @@ export class WDGame extends FairyEngine {
     /** Countdown to the next skull state change (spawn or removal), in ticks. */
     private _skullTimer = 0;
 
+    private _levelIndex: number;
+    /** Countdown to end of the current round; reset to ROUND_DURATION_TICKS each round. */
+    private _roundTimer = 0;
+    /** Countdown during the winner screen (-1 while the game is running). */
+    private _roundOverTimer = -1;
+
+    constructor(private readonly _options: WDGameOptions) {
+        super();
+        this._levelIndex = Math.floor(Math.random() * LEVELS.length);
+        this.addState('stateRoundReset', () => this._doRoundReset());
+    }
+
     // ── Resource loading ─────────────────────────────────────────────────────
 
-    /** Load all required sprite-sheet and background images. */
+    /** Load all required sprite-sheet and background images for every level. */
     protected override async stateResourceLoading(): Promise<void> {
-        const level = LEVELS[0];
-        await Promise.all([
-            this.loadImage(TILE_DATA[level.tileset].image, 'bob'),
+        const promises: Promise<HTMLImageElement>[] = [
             this.loadImage('assets/images/sprites/wdspr_fire_z2.png', 'spr_fire'),
-            this.loadImage(level.background, 'bg'),
             this.loadImage('assets/images/sprites/wdspr_pl_z2.png', 'spr_pl'),
-        ]);
+        ];
+        const seen = new Set<string>();
+        for (const level of LEVELS) {
+            const tilesId = `tiles:${level.tileset}`;
+            if (!seen.has(tilesId)) {
+                seen.add(tilesId);
+                promises.push(this.loadImage(TILE_DATA[level.tileset].image, tilesId));
+            }
+            if (!seen.has(level.background)) {
+                seen.add(level.background);
+                promises.push(this.loadImage(level.background, level.background));
+            }
+        }
+        await Promise.all(promises);
     }
 
     // ── Game initializing ────────────────────────────────────────────────────
 
-    /**
-     * Build all layers, load a random level, create both players, and
-     * attach collision observers to each player.
-     */
+    /** One-time setup: bind the canvas and locate the HUD DOM elements, then start the first round. */
     protected override stateGameInitializing(): void {
         const canvas = document.querySelector<HTMLCanvasElement>('canvas')!;
         this.setCanvas(canvas);
-
-        this.createBackgroundLayer('bg', 640, 480);
-        this._land = this.createMatrixLayer('bob', LEVEL_COLS, LEVEL_ROWS, 32, 32);
-        this.createCollider(LEVEL_COLS, LEVEL_ROWS, 32, 32);
-        this._sprites = this.createFairyLayer();
-        this._sprites.setYMax(480);
-        this._text = this.createCanvasLayer();
-
-        const levelData = LEVELS[0];
-        this._buildLevel(levelData);
-        this._sounds.startBGM([
-            `assets/musics/ogg/${levelData.music}.ogg`,
-            `assets/musics/mp3/${levelData.music}.mp3`,
-        ]);
         this._scoreEls = [document.getElementById('score_0'), document.getElementById('score_1')];
         this._hpBarEls = [document.getElementById('hp-bar-0'), document.getElementById('hp-bar-1')];
         this._precisionEls = [
             document.getElementById('precision_0'),
             document.getElementById('precision_1'),
         ];
+        this._initRound();
+    }
+
+    // ── Round initialisation ──────────────────────────────────────────────────
+
+    /**
+     * Build (or rebuild) all layers, load the current level, create fresh player
+     * sprites with their observers, and reset every per-round counter.
+     * Called on first game start and again after each round reset.
+     */
+    private _initRound(): void {
+        const levelData = LEVELS[this._levelIndex];
+        this.createBackgroundLayer(levelData.background, 640, 480);
+        this._land = this.createMatrixLayer(
+            `tiles:${levelData.tileset}`,
+            LEVEL_COLS,
+            LEVEL_ROWS,
+            32,
+            32
+        );
+        this.createCollider(LEVEL_COLS, LEVEL_ROWS, 32, 32);
+        this._sprites = this.createFairyLayer();
+        this._sprites.setYMax(480);
+        this._text = this.createCanvasLayer();
+
+        this._buildLevel(levelData);
+        this._sounds.startBGM([
+            `assets/musics/ogg/${levelData.music}.ogg`,
+            `assets/musics/mp3/${levelData.music}.mp3`,
+        ]);
 
         for (let i = 0; i < 2; i++) {
             const p = this.createFairy(this._sprites, 'spr_pl', new WDPlayer(i)) as WDPlayer;
@@ -215,12 +264,22 @@ export class WDGame extends FairyEngine {
                         shooter.store.state.score += SCORE_DESTROYING_FOE;
                         this._startDeathSequence(victim);
                     } else if (damagedBy instanceof WDBullet || damagedBy instanceof WDPlasmaBall) {
-                        if (++shooter.store.state.bulletHitStreak >= 2) {
-                            shooter.store.state.bulletHitStreak = 0;
+                        const ss = shooter.store.state;
+                        if (
+                            ss.bulletHitLastTick < 0 ||
+                            this._gameTick - ss.bulletHitLastTick > TWO_HIT_MISSILE_DELAY
+                        ) {
+                            ss.bulletHitStreak = 0;
+                        }
+                        ss.bulletHitLastTick = this._gameTick;
+                        if (++ss.bulletHitStreak >= 2) {
+                            ss.bulletHitStreak = 0;
+                            ss.bulletHitLastTick = -1;
                             this._autoFireMissile(shooter, victim);
                         }
                     } else {
                         shooter.store.state.bulletHitStreak = 0;
+                        shooter.store.state.bulletHitLastTick = -1;
                     }
                 })
             );
@@ -234,20 +293,32 @@ export class WDGame extends FairyEngine {
         }
 
         this._crateSpawnPositions = this._buildCrateSpawnList();
+        this._activeCrates = [];
         this._crateTimer = CRATE_TIME_TO_SPAWN;
+
+        this._skull = null;
+        this._skullActive = false;
         this._skullTimer = this._randomSkullWaitDuration();
+
+        this._deathTimers = [-1, -1];
+        this._respawnTimers = [-1, -1];
+        this._gameTick = 0;
+        this._roundTimer = ROUND_DURATION_TICKS;
+        this._roundOverTimer = -1;
 
         // Single-player mode: player 1 is controlled by AI.
         // Set to null here (and remove the AIController field) to restore two-player mode.
-        this._aiController = new AIController(
-            this._players[1],
-            this._players[0],
-            this._land,
-            PLAYER_KEYS[1],
-            { ...PROFILE_HUNTER, initialState: 'chase-debug' }, // swap for PROFILE_BASIC, PROFILE_HUNTER, PROFILE_BERSERKER, PROFILE_CAUTIOUS…
-            this._text.canvas,
-            () => this._activeCrates
-        );
+        this._aiController = this._options.aiControlled
+            ? new AIController(
+                  this._players[1],
+                  this._players[0],
+                  this._land,
+                  PLAYER_KEYS[1],
+                  { ...PROFILE_HUNTER, initialState: 'chase-debug' }, // swap for PROFILE_BASIC, PROFILE_HUNTER, PROFILE_BERSERKER, PROFILE_CAUTIOUS…
+                  this._text.canvas,
+                  () => this._activeCrates
+              )
+            : null;
     }
 
     get textLayer(): FairyLayer {
@@ -263,7 +334,16 @@ export class WDGame extends FairyEngine {
      * 3. Spawn a missile (with exhaust callback) when a player fires.
      * 4. Refresh the score display.
      */
-    protected override stateGameRunning(): null {
+    protected override stateGameRunning(): string | null {
+        // Winner screen phase: freeze game logic and count down to next round.
+        if (this._roundOverTimer >= 0) {
+            if (--this._roundOverTimer <= 0) {
+                return 'stateRoundReset';
+            }
+            return null;
+        }
+
+        this._gameTick++;
         for (const player of this._players) {
             if (this._deathTimers[player.nCode] >= 0) {
                 this._updateDeathSequence(player);
@@ -295,22 +375,28 @@ export class WDGame extends FairyEngine {
                 player.bWantFire = false;
                 const enemy = this._players[1 - player.nCode];
                 const heightDiff = enemy.oFlight.vPosition.y - player.oFlight.vPosition.y;
-                let projectile;
                 if (heightDiff > GRENADE_HEIGHT_THRESHOLD) {
-                    projectile = new WDGrenade(player);
+                    this._fireProjectile(player, new WDGrenade(player));
                 } else if (player.store.state.plasmaBallCount > 0) {
                     player.store.state.plasmaBallCount--;
-                    projectile = new WDPlasmaBall(player);
+                    this._fireProjectile(player, new WDPlasmaBall(player));
+                } else if (player.store.state.tripleBullet) {
+                    this._fireTripleBullet(player);
                 } else {
-                    projectile = new WDBullet(player);
+                    this._fireProjectile(player, new WDBullet(player));
                 }
-                this._fireProjectile(player, projectile);
             }
         }
 
         this._updateCrate();
         this._updateSkull();
         this._updateScoreDisplay();
+
+        if (--this._roundTimer <= 0) {
+            this._drawWinnerScreen();
+            this._roundOverTimer = ROUND_OVER_DISPLAY_TICKS;
+        }
+
         return null;
     }
 
@@ -411,11 +497,12 @@ export class WDGame extends FairyEngine {
         ss.hitPoints = ss.vitality;
         ss.energy = ss.maxEnergy;
         ss.power = 1;
-        ss.shield = 0;
+        ss.shield = false;
         ss.shieldTime = 0;
         ss.powerBoostTime = 0;
         ss.plasmaBallCount = 0;
         ss.bulletHitStreak = 0;
+        ss.bulletHitLastTick = -1;
         const spawnPos =
             this._crateSpawnPositions[Math.floor(Math.random() * this._crateSpawnPositions.length)];
         const spawnX = spawnPos.col * 32 + 16;
@@ -482,6 +569,25 @@ export class WDGame extends FairyEngine {
      * Triggered after two consecutive WDBullet hits on the same target.
      * Silently cancelled if the shooter lacks the energy.
      */
+    /**
+     * Fire three bullets in a spread pattern: one straight, one angled up, one angled down.
+     * Only the center bullet pays the energy cost; the two angled ones are free.
+     */
+    private _fireTripleBullet(shooter: WDPlayer): void {
+        const center = new WDBullet(shooter);
+        this._fireProjectile(shooter, center);
+
+        const up = new WDBullet(shooter);
+        up.oFlight.vSpeed.y = -TRIPLE_BULLET_VSPEED;
+        up.state.cost = 0;
+        this._fireProjectile(shooter, up);
+
+        const down = new WDBullet(shooter);
+        down.oFlight.vSpeed.y = TRIPLE_BULLET_VSPEED;
+        down.state.cost = 0;
+        this._fireProjectile(shooter, down);
+    }
+
     private _autoFireMissile(shooter: WDPlayer, target: WDPlayer): void {
         const missile = new WDMissile(shooter, target, (x, y) =>
             this.createFairy(this._sprites, 'spr_fire', new WDExhaust(x, y))
@@ -655,7 +761,7 @@ export class WDGame extends FairyEngine {
                 other.pickup(player);
             } else if (other instanceof WDSkullGrenade && !other.bDead) {
                 // Skull grenade hit: apply fixed damage (no score awarded), shock, explode.
-                const shieldActive = player.store.state.shield > 0;
+                const shieldActive = player.store.state.shield;
                 const damage = Math.ceil(other.damage * (shieldActive ? 0.1 : 1));
                 player.store.state.hitPoints = Math.max(0, player.store.state.hitPoints - damage);
                 this._sounds.play('hurt');
@@ -674,7 +780,7 @@ export class WDGame extends FairyEngine {
                 }
             } else if (other instanceof WDFlame && !other.bDead) {
                 // Flame contact: fixed damage, knock back away from the flame, explode.
-                const shieldActive = player.store.state.shield > 0;
+                const shieldActive = player.store.state.shield;
                 const damage = Math.ceil(other.damage * (shieldActive ? 0.1 : 1));
                 player.store.state.hitPoints = Math.max(0, player.store.state.hitPoints - damage);
                 this._sounds.play('hurt');
@@ -844,7 +950,7 @@ export class WDGame extends FairyEngine {
     }
 
     private _bonusShield(player: WDPlayer): void {
-        player.store.state.shield = 1;
+        player.store.state.shield = true;
         player.store.state.shieldTime = 6 * 60;
     }
 
@@ -1151,5 +1257,49 @@ export class WDGame extends FairyEngine {
             }
             player.store.validate();
         }
+    }
+
+    // ── Round over / reset ────────────────────────────────────────────────────
+
+    /** Draw the winner overlay directly onto the game canvas. */
+    private _drawWinnerScreen(): void {
+        const canvas = this.getCanvas();
+        const ctx = canvas.getContext('2d')!;
+        const w = canvas.width;
+        const h = canvas.height;
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+        ctx.fillRect(0, 0, w, h);
+
+        const s0 = this._players[0].store.state.score;
+        const s1 = this._players[1].store.state.score;
+        const winnerText =
+            s0 > s1 ? 'PLAYER 1 WINS!' : s1 > s0 ? 'PLAYER 2 WINS!' : 'DRAW!';
+
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 56px monospace';
+        ctx.fillText(winnerText, w / 2, h / 2 - 20);
+
+        ctx.fillStyle = '#aaaaaa';
+        ctx.font = '28px monospace';
+        ctx.fillText(`${s0}  —  ${s1}`, w / 2, h / 2 + 32);
+    }
+
+    /**
+     * FSM handler for the `stateRoundReset` state.
+     * Stops the music, tears down all layers, picks a new random level (different
+     * from the current one), and rebuilds the round via `_initRound`.
+     */
+    private _doRoundReset(): string {
+        this._sounds.stopBGM();
+        this.clearLayers();
+        const prev = this._levelIndex;
+        do {
+            this._levelIndex = Math.floor(Math.random() * LEVELS.length);
+        } while (LEVELS.length > 1 && this._levelIndex === prev);
+        this._players = [];
+        this._initRound();
+        return 'stateGameRunning';
     }
 }

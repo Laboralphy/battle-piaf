@@ -95,10 +95,14 @@ export class WDPlayer extends Fairy<WDPlayerEvents> {
         power: 1,
         score: 0,
         bulletHitStreak: 0,
+        bulletHitStreakMax: 0,
+        bulletHitStreakTime: 0,
+        bulletHitLastTick: -1,
+        tripleBullet: true,
         displayed: false,
         energy: 100,
         maxEnergy: 100,
-        shield: 0,
+        shield: false,
         shieldTime: 0,
         powerBoostTime: 0,
         plasmaBallCount: 0,
@@ -115,11 +119,12 @@ export class WDPlayer extends Fairy<WDPlayerEvents> {
         this.oFlight.vSpeed.set(0, 0);
         this.oFlight.vAccel.set(0, 0);
         const ss = this.store.state;
-        ss.shield = 0;
+        ss.shield = false;
         ss.shieldTime = 0;
         ss.powerBoostTime = 0;
         ss.plasmaBallCount = 0;
         ss.bulletHitStreak = 0;
+        ss.bulletHitLastTick = -1;
         this.oBoundingShape.setTangibilityMask(0);
         this.oObservatory.notify(this, 'death', {});
     }
@@ -225,11 +230,11 @@ export class WDPlayer extends Fairy<WDPlayerEvents> {
         super.proceed();
         const ss = this.store.state;
         ss.energy = Math.min(ss.maxEnergy, ss.energy + 1);
-        if (ss.shield > 0) {
+        if (ss.shield) {
             if (ss.shieldTime > 0) {
                 ss.shieldTime--;
             } else {
-                ss.shield = 0;
+                ss.shield = false;
             }
         }
     }
@@ -238,7 +243,7 @@ export class WDPlayer extends Fairy<WDPlayerEvents> {
         const damage = Math.ceil(
             wdf.state.damage *
                 wdf.oOwner.store.state.power *
-                (this.store.state.shield > 0 ? SHIELD_DEFENSE_VALUE : 1)
+                (this.store.state.shield ? SHIELD_DEFENSE_VALUE : 1)
         );
         this.store.state.hitPoints = Math.max(0, this.store.state.hitPoints - damage);
         this.oObservatory.notify(this, 'damaged', {
@@ -257,7 +262,7 @@ export class WDPlayer extends Fairy<WDPlayerEvents> {
      */
     override render(): void {
         super.render();
-        if (this.store.state.shield < 1 || !this.oFireImage || !this.oContext) {
+        if (!this.store.state.shield || !this.oFireImage || !this.oContext) {
             return;
         }
         const SHIELD_W = 16;

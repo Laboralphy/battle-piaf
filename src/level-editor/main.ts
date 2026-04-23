@@ -1,6 +1,5 @@
 import { createApp } from 'petite-vue';
-import level0 from '../data/level-0.json';
-import level1 from '../data/level-1.json';
+import LEVEL_SRCS from '../data/levels';
 import type { LevelData } from '../game/levels';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -156,10 +155,6 @@ function renderPalette(selectedGfx: number): void {
 
 // ── App ───────────────────────────────────────────────────────────────────────
 
-const LEVEL_SRCS: Record<string, LevelData> = {
-    'level-0': level0 as unknown as LevelData,
-    'level-1': level1 as unknown as LevelData,
-};
 
 const LAND_TILES = 'assets/images/land-tiles/';
 const BACKGROUNDS_PATH = 'assets/images/backgrounds/';
@@ -177,11 +172,12 @@ function makeApp() {
     let hover: { x: number; y: number } | null = null;
 
     const app = {
-        grid: decodeLevel(LEVEL_SRCS['level-0'].map),
+        levelKeys: Object.keys(LEVEL_SRCS),
+        grid: decodeLevel(LEVEL_SRCS[Object.keys(LEVEL_SRCS)[0]].map),
         undoStack: [] as Grid[],
         selectedGfx: 0,
         levelName: 'my-level',
-        loadSource: 'level-0',
+        loadSource: Object.keys(LEVEL_SRCS)[0],
         tileSheet: 'wdbob_land0_z2',
         background: 'background-0',
 
@@ -192,7 +188,6 @@ function makeApp() {
         // ── Lifecycle ────────────────────────────────────────────────────────
 
         mounted() {
-            console.log('mounted');
             this.loadTilesheet();
             this._setupGridEvents();
             this._setupPaletteEvents();
@@ -231,7 +226,7 @@ function makeApp() {
             if (bgKey) {
                 this.background = bgKey;
             }
-            renderGrid(this.grid);
+            this.loadTilesheet();
         },
 
         clearLevel() {

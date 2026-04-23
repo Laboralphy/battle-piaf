@@ -31,6 +31,16 @@
                     "dur": 8,
                     "count": 0
                 }
+            },
+            "Z.": {
+                "start": 35,
+                "count": 5,
+                "loop": {
+                    "type": 1,
+                    "inc": 1,
+                    "dur": 16,
+                    "count": 0
+                }
             }
         }
     }

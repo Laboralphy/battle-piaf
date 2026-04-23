@@ -6,7 +6,7 @@ import { Howl } from 'howler';
  * Sounds with no channel (null) always play freely on top of everything else.
  */
 const SOUND_SRCS: Record<string, { channel: string | null; srcs: string[][] }> = {
-    'shoot-bullet': { channel: 'shoot', srcs: [['ogg/shoot-2.ogg', 'mp3/shoot-2.mp3']] },
+    'shoot-bullet': { channel: 'shoot', srcs: [['ogg/shoot-3.ogg', 'mp3/shoot-3.mp3']] },
     'shoot-plasma': { channel: 'shoot', srcs: [['ogg/shoot-6.ogg', 'mp3/shoot-6.mp3']] },
     'shoot-missile': { channel: 'missile', srcs: [['ogg/missile-1.ogg', 'mp3/missile-1.mp3']] },
     'shoot-grenade': { channel: 'missile', srcs: [['ogg/shoot-8.ogg', 'mp3/shoot-8.mp3']] },

@@ -1,6 +1,6 @@
 import { Observer } from '../../core/Observer.js';
-import { WDPlayer, PlayerKeys } from '../WDPlayer.js';
-import { WDCrate } from '../WDCrate.js';
+import { WDPlayer, PlayerKeys } from '../entities/WDPlayer';
+import { WDCrate } from '../entities/WDCrate';
 import { FairyMatrix } from '../../engine/FairyMatrix.js';
 import { AIInput } from './AIInput.js';
 import { AIContext } from './AIContext.js';

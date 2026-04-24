@@ -1,9 +1,9 @@
-import { Fairy, FairyBaseEvents } from '../engine/Fairy.js';
-import { FairyFlight } from '../engine/FairyFlight.js';
-import { WDPlayer } from './WDPlayer.js';
-import type { SoundId } from './SoundManager.js';
-import { WeaponState } from './state/WeaponState.js';
-import { Observatory } from '../core/Observatory.js';
+import { Fairy, FairyBaseEvents } from '../../engine/Fairy';
+import { FairyFlight } from '../../engine/FairyFlight';
+import { WDPlayer } from './WDPlayer';
+import type { SoundId } from '../SoundManager';
+import { WeaponState } from '../state/WeaponState';
+import { Observatory } from '../../core/Observatory';
 
 /**
  * Event map for all projectiles.

@@ -91,6 +91,14 @@ export class Fairy<TEvents extends FairyBaseEvents = FairyBaseEvents> implements
     /** When true, the collision bounding box is drawn in red during `render`. */
     bDebug: boolean = false;
 
+    /**
+     * Scale factor applied to position coordinates during rendering.
+     * Use this when the physics world is larger than the display canvas
+     * (e.g. 0.5 maps a 640×480 physics world onto a 320×240 canvas).
+     * Does NOT affect sprite dimensions — only where it is drawn.
+     */
+    renderScale = 1;
+
     /** All animation clips available for this sprite; indexed by `playAnimation`. */
     readonly aAnimations: FairyAnimation[] = [];
 
@@ -219,7 +227,7 @@ export class Fairy<TEvents extends FairyBaseEvents = FairyBaseEvents> implements
     /**
      * Draw the current animation frame onto `oContext`.
      * Source rect: `(sx, ySrc, nWidth, nHeight)` from `oImage`.
-     * Destination: `(vPosition - vReference)`, size `(nZWidth, nZHeight)`.
+     * Destination: `(vPosition - vReference) * renderScale`, size `(nZWidth, nZHeight)`.
      * No-op if the sprite is invisible or any required resource is missing.
      */
     render(): void {
@@ -230,14 +238,15 @@ export class Fairy<TEvents extends FairyBaseEvents = FairyBaseEvents> implements
         const cols = Math.floor(this.oImage.naturalWidth / this.nWidth);
         const sx = (absoluteFrame % cols) * this.nWidth + this.oAnimation.xSrc;
         const sy = Math.floor(absoluteFrame / cols) * this.nHeight + this.oAnimation.ySrc;
+        const s = this.renderScale;
         this.oContext.drawImage(
             this.oImage,
             sx,
             sy,
             this.nWidth,
             this.nHeight,
-            Math.floor(this.oFlight.vPosition.x - this.vReference.x),
-            Math.floor(this.oFlight.vPosition.y - this.vReference.y),
+            Math.floor((this.oFlight.vPosition.x - this.vReference.x) * s),
+            Math.floor((this.oFlight.vPosition.y - this.vReference.y) * s),
             this.nZWidth,
             this.nZHeight
         );
@@ -245,7 +254,12 @@ export class Fairy<TEvents extends FairyBaseEvents = FairyBaseEvents> implements
             this.oContext.strokeStyle = 'red';
             this.oContext.lineWidth = 1;
             const [v1, v2] = (this.oBoundingShape as FairyCollisionRect).getPoints();
-            this.oContext.strokeRect(v1.x, v1.y, v2.x - v1.x - 1, v2.y - v1.y - 1);
+            this.oContext.strokeRect(
+                (this.oFlight.vPosition.x + v1.x) * s,
+                (this.oFlight.vPosition.y + v1.y) * s,
+                (v2.x - v1.x - 1) * s,
+                (v2.y - v1.y - 1) * s
+            );
         }
     }
 

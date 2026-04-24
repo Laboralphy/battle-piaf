@@ -1,7 +1,8 @@
-import { Vector2D } from '../core/Vector2D.js';
-import { FairyAnimation } from '../engine/FairyAnimation.js';
-import { FairyCollisionRect } from '../engine/FairyCollision.js';
-import { Fairy, FairyBaseEvents } from '../engine/Fairy.js';
+import { Vector2D } from '../../core/Vector2D';
+import { FairyAnimation } from '../../engine/FairyAnimation';
+import { FairyCollisionRect } from '../../engine/FairyCollision';
+import { Fairy, FairyBaseEvents } from '../../engine/Fairy';
+import { TILE_SIZE } from '../consts';
 
 export type WDSkullEvents = FairyBaseEvents & {
     /** Emitted each time the skull wants to throw a grenade (variant 0). */
@@ -57,7 +58,7 @@ export class WDSkull extends Fairy<WDSkullEvents> {
 
         this.variant = variant;
 
-        this.setSize(16, 16);
+        this.setSize(TILE_SIZE / 2, TILE_SIZE / 2);
         this.setScale(1);
         this.vReference.set(8, 8);
 

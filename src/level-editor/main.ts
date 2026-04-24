@@ -9,7 +9,8 @@ const META = '.*#@%$';
 const META_MULT = 120;
 const COLS = 20;
 const ROWS = 15;
-const TILE = 32;
+const TILE_SRC = 16; // pixel size of one tile in the sprite sheet
+const TILE = 32;     // display size in the editor (2× upscale for usability)
 const PAL_COLS = 6; // tiles per row in the palette grid
 const PAL_W = PAL_COLS * TILE; // 192 px
 const UNDO_LIMIT = 50;
@@ -65,9 +66,9 @@ function drawSprite(ctx: CanvasRenderingContext2D, gfx: number, dx: number, dy: 
     if (!spriteImg || tilesPerRow === 0) {
         return;
     }
-    const sx = (gfx % tilesPerRow) * TILE;
-    const sy = Math.floor(gfx / tilesPerRow) * TILE;
-    ctx.drawImage(spriteImg, sx, sy, TILE, TILE, dx, dy, TILE, TILE);
+    const sx = (gfx % tilesPerRow) * TILE_SRC;
+    const sy = Math.floor(gfx / tilesPerRow) * TILE_SRC;
+    ctx.drawImage(spriteImg, sx, sy, TILE_SRC, TILE_SRC, dx, dy, TILE, TILE);
 }
 
 function renderGrid(grid: Grid, hover: { x: number; y: number } | null = null): void {
@@ -117,7 +118,7 @@ function renderPalette(selectedGfx: number): void {
         return;
     }
 
-    const sheetRowCount = Math.floor(spriteImg.height / TILE);
+    const sheetRowCount = Math.floor(spriteImg.height / TILE_SRC);
     const totalTiles = tilesPerRow * sheetRowCount;
     const palRowCount = Math.ceil(totalTiles / PAL_COLS);
     canvas.height = palRowCount * TILE;
@@ -160,7 +161,7 @@ const LAND_TILES = 'assets/images/land-tiles/';
 const BACKGROUNDS_PATH = 'assets/images/backgrounds/';
 
 const TILESHEETS: Record<string, string> = {
-    wdbob_land0_z2: `${LAND_TILES}wdbob_land0_z2.png`,
+    wdbob_land0_z1: `${LAND_TILES}wdbob_land0_z1.png`,
 };
 
 const BACKGROUNDS: Record<string, string> = {
@@ -178,7 +179,7 @@ function makeApp() {
         selectedGfx: 0,
         levelName: 'my-level',
         loadSource: Object.keys(LEVEL_SRCS)[0],
-        tileSheet: 'wdbob_land0_z2',
+        tileSheet: 'wdbob_land0_z1',
         background: 'background-0',
 
         get canUndo() {
@@ -202,7 +203,7 @@ function makeApp() {
             img.src = src;
             img.onload = () => {
                 spriteImg = img;
-                tilesPerRow = Math.floor(img.width / TILE);
+                tilesPerRow = Math.floor(img.width / TILE_SRC);
                 renderGrid(this.grid);
                 renderPalette(this.selectedGfx);
             };

@@ -1,1 +1,1 @@
-export const TILE_SIZE = 32;
+export { PHYSICAL_TILE_SIZE as TILE_SIZE } from '../../consts';

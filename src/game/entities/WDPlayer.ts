@@ -1,12 +1,13 @@
-import { Vector2D } from '../core/Vector2D.js';
-import { FairyAnimation } from '../engine/FairyAnimation.js';
-import { FairyCollisionRect } from '../engine/FairyCollision.js';
-import { FairyInputState } from '../engine/FairyInputState.js';
-import { Fairy, FairyBaseEvents } from '../engine/Fairy.js';
-import { WDPlayerFlight } from './WDPlayerFlight.js';
-import { WDFire } from './WDFire.js';
-import { PlayerState } from './state/PlayerState.js';
-import { Store } from '../store';
+import { Vector2D } from '../../core/Vector2D.js';
+import { FairyAnimation } from '../../engine/FairyAnimation.js';
+import { FairyCollisionRect } from '../../engine/FairyCollision.js';
+import { FairyInputState } from '../../engine/FairyInputState.js';
+import { Fairy, FairyBaseEvents } from '../../engine/Fairy.js';
+import { WDPlayerFlight } from '../WDPlayerFlight.js';
+import { WDFire } from './WDFire';
+import { PlayerState } from '../state/PlayerState.js';
+import { Store } from '../../store';
+import { TILE_SIZE } from '../consts';
 
 /** Weapons a player can fire. */
 export const enum Weapon {
@@ -106,9 +107,9 @@ export class WDPlayer extends Fairy<WDPlayerEvents> {
         powerBoostTime: 0,
         fireCount: 0,
         enemyHit: 0,
-        specialWeapon: 3,
+        specialWeapon: 0,
         specialWeaponAmmo: 0,
-        defaultWeapon: 3,
+        defaultWeapon: 0,
     });
 
     /**
@@ -135,7 +136,7 @@ export class WDPlayer extends Fairy<WDPlayerEvents> {
     constructor(nCode: number) {
         super();
         this.nCode = nCode;
-        this.setSize(32, 32);
+        this.setSize(TILE_SIZE, TILE_SIZE);
         this.setScale(1);
         // vReference at (16, 31): bottom-centre of the sprite is the physics anchor.
         this.vReference.set(16, 31);
@@ -143,8 +144,8 @@ export class WDPlayer extends Fairy<WDPlayerEvents> {
         const flight = new WDPlayerFlight();
         this.setFlight(flight);
         flight.vPosition.set(
-            Math.floor(Math.random() * 600),
-            440 - Math.floor(Math.random() * 400)
+            Math.floor(Math.random() * 18 * 32),
+            10 * 32 - Math.floor(Math.random() * 8 * 32)
         );
         // Constant downward gravity.
         flight.vAccel.set(0, 0.25);
@@ -268,11 +269,12 @@ export class WDPlayer extends Fairy<WDPlayerEvents> {
         if (!this.store.state.shield || !this.oFireImage || !this.oContext) {
             return;
         }
-        const SHIELD_W = 16;
-        const SHIELD_H = 32;
-        const TILE_STRIDE = 16;
-        const playerDestX = Math.floor(this.oFlight.vPosition.x - this.vReference.x);
-        const playerDestY = Math.floor(this.oFlight.vPosition.y - this.vReference.y);
+        const SHIELD_W = TILE_SIZE / 2;
+        const SHIELD_H = TILE_SIZE;
+        const TILE_STRIDE = TILE_SIZE / 2;
+        const s = this.renderScale;
+        const playerDestX = Math.floor((this.oFlight.vPosition.x - this.vReference.x) * s);
+        const playerDestY = Math.floor((this.oFlight.vPosition.y - this.vReference.y) * s);
         // Left shield (tile 22)
         this.oContext.drawImage(
             this.oFireImage,

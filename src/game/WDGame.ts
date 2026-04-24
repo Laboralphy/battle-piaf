@@ -8,29 +8,30 @@ import { FairyKeys } from '../engine/FairyKeys.js';
 import { FairyLevelBuilder } from '../engine/FairyLevelBuilder.js';
 import { FairyMatrix } from '../engine/FairyMatrix.js';
 import { Fairies } from '../engine/Fairies.js';
-import { WDBullet } from './WDBullet.js';
-import { WDPlayer } from './WDPlayer.js';
+import { WDBullet } from './entities/WDBullet';
+import { WDPlayer } from './entities/WDPlayer';
 import { WDPlayerFlight } from './WDPlayerFlight.js';
 import { FairyCollisionRect, ICollidable } from '../engine/FairyCollision.js';
 import { Fairy } from '../engine/Fairy.js';
 import { SoundManager } from './SoundManager.js';
 import { LevelData, LEVELS } from './levels';
-import { WDMissile } from './WDMissile.js';
-import { WDGrenade } from './WDGrenade.js';
-import { WDFire } from './WDFire.js';
-import { WDExhaust } from './WDExhaust.js';
-import { WDExplosion } from './WDExplosion.js';
-import { WDImpact } from './WDImpact.js';
-import { WDPlasmaBall } from './WDPlasmaBall.js';
-import { CrateBonus, WDCrate } from './WDCrate.js';
+import { WDMissile } from './entities/WDMissile';
+import { WDGrenade } from './entities/WDGrenade';
+import { WDFire } from './entities/WDFire';
+import { WDExhaust } from './entities/WDExhaust';
+import { WDExplosion } from './entities/WDExplosion';
+import { WDImpact } from './entities/WDImpact';
+import { WDPlasmaBall } from './entities/WDPlasmaBall';
+import { CrateBonus, WDCrate } from './entities/WDCrate';
 import { WDBonusIndicator } from './WDBonusIndicator.js';
-import { WDSkull } from './WDSkull.js';
-import { WDSkullGrenade } from './WDSkullGrenade.js';
-import { WDFlame } from './WDFlame.js';
-import { WDBouncingBullet } from './WDBouncingBullet.js';
+import { WDSkull } from './entities/WDSkull';
+import { WDSkullGrenade } from './entities/WDSkullGrenade';
+import { WDFlame } from './entities/WDFlame';
+import { WDBouncingBullet } from './entities/WDBouncingBullet';
 import { TILE_DATA } from './tile-animations';
 import LOOT_DATA from '../data/loot.json';
 import { FairyLayer } from '../engine/FairyLayer';
+import { TILE_SIZE, PHYSICAL_TILE_SIZE } from './consts';
 
 /**
  * Keyboard bindings for each player.
@@ -101,7 +102,7 @@ const ROUND_OVER_DISPLAY_TICKS = 5 * TICKS_PER_SECOND;
 const LEVEL_COLS = 20;
 const LEVEL_ROWS = 15;
 
-const SEMI_SOLID_TILE_SUB_Y = 16;
+const SEMI_SOLID_TILE_SUB_Y = PHYSICAL_TILE_SIZE / 2;
 
 /**
  * Main game class for Battle Piaf.
@@ -174,8 +175,8 @@ export class WDGame extends FairyEngine {
     /** Load all required sprite-sheet and background images for every level. */
     protected override async stateResourceLoading(): Promise<void> {
         const promises: Promise<HTMLImageElement>[] = [
-            this.loadImage('assets/images/sprites/wdspr_fire_z2.png', 'spr_fire'),
-            this.loadImage('assets/images/sprites/wdspr_pl_z2.png', 'spr_pl'),
+            this.loadImage('assets/images/sprites/wdspr_fire_z1.png', 'spr_fire'),
+            this.loadImage('assets/images/sprites/wdspr_pl_z1.png', 'spr_pl'),
         ];
         const seen = new Set<string>();
         for (const level of LEVELS) {
@@ -216,17 +217,22 @@ export class WDGame extends FairyEngine {
      */
     private _initRound(): void {
         const levelData = LEVELS[this._levelIndex];
-        this.createBackgroundLayer(levelData.background, 640, 480);
+        this.createBackgroundLayer(
+            levelData.background,
+            LEVEL_COLS * TILE_SIZE,
+            LEVEL_ROWS * TILE_SIZE
+        );
         this._land = this.createMatrixLayer(
             `tiles:${levelData.tileset}`,
             LEVEL_COLS,
             LEVEL_ROWS,
-            32,
-            32
+            TILE_SIZE,
+            TILE_SIZE
         );
-        this.createCollider(LEVEL_COLS, LEVEL_ROWS, 32, 32);
+        this.createCollider(LEVEL_COLS, LEVEL_ROWS, PHYSICAL_TILE_SIZE, PHYSICAL_TILE_SIZE);
         this._sprites = this.createFairyLayer();
-        this._sprites.setYMax(480);
+        this._sprites.setRenderScale(TILE_SIZE / PHYSICAL_TILE_SIZE);
+        this._sprites.setYMax(LEVEL_ROWS * PHYSICAL_TILE_SIZE);
         this._text = this.createCanvasLayer();
 
         this._buildLevel(levelData);
@@ -302,6 +308,11 @@ export class WDGame extends FairyEngine {
 
         this._deathTimers = [-1, -1];
         this._respawnTimers = [-1, -1];
+
+        // Place players at proper spawn positions right from the start.
+        for (const player of this._players) {
+            this._respawnPlayer(player);
+        }
         this._gameTick = 0;
         this._roundTimer = ROUND_DURATION_TICKS;
         this._roundOverTimer = -1;
@@ -470,8 +481,8 @@ export class WDGame extends FairyEngine {
             elapsed % DEATH_EXPLOSION_INTERVAL === 0 &&
             elapsed / DEATH_EXPLOSION_INTERVAL < DEATH_EXPLOSION_COUNT
         ) {
-            const ox = (Math.random() - 0.5) * 32;
-            const oy = (Math.random() - 0.5) * 32;
+            const ox = (Math.random() - 0.5) * PHYSICAL_TILE_SIZE;
+            const oy = (Math.random() - 0.5) * PHYSICAL_TILE_SIZE;
             const ex = this.createFairy(
                 this._sprites,
                 'spr_fire',
@@ -519,8 +530,15 @@ export class WDGame extends FairyEngine {
         ss.bulletHitLastTick = -1;
         const spawnPos =
             this._crateSpawnPositions[Math.floor(Math.random() * this._crateSpawnPositions.length)];
-        const spawnX = spawnPos.col * 32 + 16;
-        const spawnY = spawnPos.row * 32 - 1;
+        const spawnX = spawnPos.col * PHYSICAL_TILE_SIZE + PHYSICAL_TILE_SIZE / 2;
+        const spawnY = spawnPos.row * PHYSICAL_TILE_SIZE - 1;
+        console.log(
+            'spawning player at tile %d, %d = pixel pos %d, %d',
+            spawnPos.col,
+            spawnPos.row,
+            spawnX,
+            spawnY
+        );
         player.oFlight.vPosition.set(spawnX, spawnY);
         player.oFlight.vSpeed.set(0, 0);
         player.oFlight.vAccel.set(0, 0.25);
@@ -537,8 +555,8 @@ export class WDGame extends FairyEngine {
     private _spawnRespawnSmoke(cx: number, cy: number): void {
         this._sounds.play('spawn');
         for (let i = 0; i < 12; i++) {
-            const ox = (Math.random() - 0.5) * 32;
-            const oy = (Math.random() - 0.5) * 32;
+            const ox = (Math.random() - 0.5) * PHYSICAL_TILE_SIZE;
+            const oy = (Math.random() - 0.5) * PHYSICAL_TILE_SIZE;
             const smoke = this.createFairy(
                 this._sprites,
                 'spr_fire',
@@ -650,29 +668,33 @@ export class WDGame extends FairyEngine {
             // falling, which would cause a false horizontal push on every landing.
             const bottomOffset = p2.y - flight.vNewPosition.y; // v2.y offset (= 0)
             const topOffset = p1.y - flight.vNewPosition.y; // v1.y offset (= -31)
-            const wallTileY1 = Math.floor(flight.vPosition.y + bottomOffset - 1) >> 5;
-            const wallTileY2 = Math.floor(flight.vPosition.y + topOffset + 1) >> 5;
+            const wallTileY1 = Math.floor(
+                (flight.vPosition.y + bottomOffset - 1) / PHYSICAL_TILE_SIZE
+            );
+            const wallTileY2 = Math.floor(
+                (flight.vPosition.y + topOffset + 1) / PHYSICAL_TILE_SIZE
+            );
             const rightOffset = p2.x - flight.vNewPosition.x; // v2.x offset of right edge
             const leftOffset = p1.x - flight.vNewPosition.x; // v1.x offset of left edge
 
             if (flight.vNewPosition.x > flight.vPosition.x) {
-                const tileX = Math.floor(p2.x + 1) >> 5;
+                const tileX = Math.floor((p2.x + 1) / PHYSICAL_TILE_SIZE);
                 if (
                     this._land.getTileCode(tileX, wallTileY1) >= 2 ||
                     this._land.getTileCode(tileX, wallTileY2) >= 2
                 ) {
                     // snap right edge 1px left of tile face
-                    flight.vNewPosition.x = (tileX << 5) - 1 - rightOffset;
+                    flight.vNewPosition.x = tileX * PHYSICAL_TILE_SIZE - 1 - rightOffset;
                     flight.vNewSpeed.x = 0;
                 }
             } else if (flight.vNewPosition.x < flight.vPosition.x) {
-                const tileX = Math.floor(p1.x - 1) >> 5;
+                const tileX = Math.floor((p1.x - 1) / PHYSICAL_TILE_SIZE);
                 if (
                     this._land.getTileCode(tileX, wallTileY1) >= 2 ||
                     this._land.getTileCode(tileX, wallTileY2) >= 2
                 ) {
                     // snap left edge to tile right face
-                    flight.vNewPosition.x = ((tileX + 1) << 5) - leftOffset;
+                    flight.vNewPosition.x = (tileX + 1) * PHYSICAL_TILE_SIZE - leftOffset;
                     flight.vNewSpeed.x = 0;
                 }
             }
@@ -683,10 +705,10 @@ export class WDGame extends FairyEngine {
         player.bOnFloor = false;
         if (flight.vNewPosition.y > flight.vPosition.y) {
             const [p1, p2] = rect.getPoints();
-            const tileX1 = Math.floor(p1.x) >> 5;
-            const tileX2 = Math.floor(p2.x) >> 5;
-            const tileY = Math.floor(p2.y + 1) >> 5;
-            const subY = Math.floor(p2.y + 1) % 32;
+            const tileX1 = Math.floor(p1.x / PHYSICAL_TILE_SIZE);
+            const tileX2 = Math.floor(p2.x / PHYSICAL_TILE_SIZE);
+            const tileY = Math.floor((p2.y + 1) / PHYSICAL_TILE_SIZE);
+            const subY = Math.floor(p2.y + 1) % PHYSICAL_TILE_SIZE;
             // Row just above the floor tile — probes whose column contains a solid tile
             // here are inside a wall and must not trigger floor detection.
             const bodyRow = tileY - 1;
@@ -706,7 +728,7 @@ export class WDGame extends FairyEngine {
                         maxCode === 2 || (maxCode === 1 && player.nWantDown === 0);
                     if (bMustStabilize) {
                         // p2.y (bottom edge, v2.y=0) snapped 1px above tile top
-                        flight.vNewPosition.y = (tileY << 5) - 1;
+                        flight.vNewPosition.y = tileY * PHYSICAL_TILE_SIZE - 1;
                         flight.vNewSpeed.y = 0;
                         player.bOnFloor = true;
                         if (!wasOnFloor) {
@@ -723,16 +745,16 @@ export class WDGame extends FairyEngine {
         // Tile ceiling collision (fully solid # only, while rising)
         if (flight.vNewPosition.y < flight.vPosition.y) {
             const [p1, p2] = rect.getPoints();
-            const tileX1 = Math.floor(p1.x) >> 5;
-            const tileX2 = Math.floor(p2.x) >> 5;
-            const tileY = Math.floor(p1.y) >> 5; // top edge (head)
+            const tileX1 = Math.floor(p1.x / PHYSICAL_TILE_SIZE);
+            const tileX2 = Math.floor(p2.x / PHYSICAL_TILE_SIZE);
+            const tileY = Math.floor(p1.y / PHYSICAL_TILE_SIZE); // top edge (head)
 
             if (
                 this._land.getTileCode(tileX1, tileY) >= 2 ||
                 this._land.getTileCode(tileX2, tileY) >= 2
             ) {
-                // p1.y (top edge, v1.y=-31) snapped to tile bottom: pos.y = (tileY+1)*32 + 31
-                flight.vNewPosition.y = ((tileY + 1) << 5) + 31;
+                // p1.y (top edge, v1.y=-(TILE_SIZE-1)) snapped to tile bottom: pos.y = (tileY+1)*TILE_SIZE + (TILE_SIZE-1)
+                flight.vNewPosition.y = (tileY + 1) * PHYSICAL_TILE_SIZE + (PHYSICAL_TILE_SIZE - 1);
                 flight.vNewSpeed.y = 0;
             }
         }
@@ -847,7 +869,12 @@ export class WDGame extends FairyEngine {
         const [p1, p2] = rect.getPoints();
         const cx = (p1.x + p2.x) / 2;
         const cy = (p1.y + p2.y) / 2;
-        if (this._land.getTileCode(Math.floor(cx) >> 5, Math.floor(cy) >> 5) >= 2) {
+        if (
+            this._land.getTileCode(
+                Math.floor(cx / PHYSICAL_TILE_SIZE),
+                Math.floor(cy / PHYSICAL_TILE_SIZE)
+            ) >= 2
+        ) {
             // Bouncing bullet: first hit ricochets, second hit explodes.
             if (fire instanceof WDBouncingBullet && fire.tryBounce()) {
                 return;
@@ -891,6 +918,7 @@ export class WDGame extends FairyEngine {
         }
         const { col, row } =
             this._crateSpawnPositions[Math.floor(Math.random() * this._crateSpawnPositions.length)];
+
         const lootEntries: Array<[CrateBonus, number]> = [
             [CrateBonus.MULTICRATE, LOOT_DATA.MULTICRATE],
             [CrateBonus.SHIELD, LOOT_DATA.SHIELD],
@@ -996,18 +1024,18 @@ export class WDGame extends FairyEngine {
 
         if (flight.vNewPosition.y > flight.vPosition.y) {
             const bottomY = flight.vNewPosition.y + 8;
-            const tileX1 = Math.floor(flight.vNewPosition.x - 8) >> 5;
-            const tileX2 = Math.floor(flight.vNewPosition.x + 7) >> 5;
-            const tileY = Math.floor(bottomY) >> 5;
-            const subY = Math.floor(bottomY) % 32;
+            const tileX1 = Math.floor((flight.vNewPosition.x - 8) / PHYSICAL_TILE_SIZE);
+            const tileX2 = Math.floor((flight.vNewPosition.x + 7) / PHYSICAL_TILE_SIZE);
+            const tileY = Math.floor(bottomY / PHYSICAL_TILE_SIZE);
+            const subY = Math.floor(bottomY) % PHYSICAL_TILE_SIZE;
 
-            if (subY < 16) {
+            if (subY < SEMI_SOLID_TILE_SUB_Y) {
                 const code = Math.max(
                     this._land.getTileCode(tileX1, tileY),
                     this._land.getTileCode(tileX2, tileY)
                 );
                 if (code >= 1) {
-                    flight.vNewPosition.y = (tileY << 5) - 9;
+                    flight.vNewPosition.y = tileY * PHYSICAL_TILE_SIZE - 9;
                     flight.vNewSpeed.y = 0;
                 }
             }
@@ -1082,23 +1110,23 @@ export class WDGame extends FairyEngine {
         if (flame.bGrounded) {
             return;
         }
-        if (flight.vNewPosition.y > 480) {
+        if (flight.vNewPosition.y > LEVEL_ROWS * PHYSICAL_TILE_SIZE) {
             flame.bDead = true;
             return;
         }
         if (flight.vNewPosition.y > flight.vPosition.y) {
             const bottomY = flight.vNewPosition.y + 6;
-            const tileX1 = Math.floor(flight.vNewPosition.x - 6) >> 5;
-            const tileX2 = Math.floor(flight.vNewPosition.x + 6) >> 5;
-            const tileY = Math.floor(bottomY) >> 5;
-            const subY = Math.floor(bottomY) % 32;
-            if (subY < 16) {
+            const tileX1 = Math.floor((flight.vNewPosition.x - 6) / PHYSICAL_TILE_SIZE);
+            const tileX2 = Math.floor((flight.vNewPosition.x + 6) / PHYSICAL_TILE_SIZE);
+            const tileY = Math.floor(bottomY / PHYSICAL_TILE_SIZE);
+            const subY = Math.floor(bottomY) % PHYSICAL_TILE_SIZE;
+            if (subY < SEMI_SOLID_TILE_SUB_Y) {
                 const code = Math.max(
                     this._land.getTileCode(tileX1, tileY),
                     this._land.getTileCode(tileX2, tileY)
                 );
                 if (code >= 1) {
-                    flight.vNewPosition.y = (tileY << 5) - 7;
+                    flight.vNewPosition.y = tileY * PHYSICAL_TILE_SIZE - 7;
                     flight.vNewSpeed.set(0, 0);
                     flight.vNewAccel.set(0, 0);
                     flame.bGrounded = true;
@@ -1153,7 +1181,7 @@ export class WDGame extends FairyEngine {
         const variant = Math.random() < 0.5 ? 0 : 1;
         const skull = this.createFairy(this._sprites, 'spr_fire', new WDSkull(variant)) as WDSkull;
         skull.oFlight.vPosition.set(
-            96 + Math.floor(Math.random() * (640 - 192)),
+            96 + Math.floor(Math.random() * (LEVEL_COLS * PHYSICAL_TILE_SIZE - 192)),
             80 + Math.floor(Math.random() * 80)
         );
         this._spawnRespawnSmoke(skull.oFlight.vPosition.x, skull.oFlight.vPosition.y);
@@ -1198,15 +1226,15 @@ export class WDGame extends FairyEngine {
             skull.nFace = -1;
         } else {
             // Tile wall check: probe one pixel past the leading half-width (8 px).
-            const tileY = Math.floor(flight.vNewPosition.y) >> 5;
+            const tileY = Math.floor(flight.vNewPosition.y / PHYSICAL_TILE_SIZE);
             if (skull.nFace > 0) {
-                const tileX = Math.floor(flight.vNewPosition.x + 9) >> 5;
+                const tileX = Math.floor((flight.vNewPosition.x + 9) / PHYSICAL_TILE_SIZE);
                 if (this._land.getTileCode(tileX, tileY) >= 2) {
                     skull.nFace = -1;
                     flight.vNewSpeed.x = 0;
                 }
             } else {
-                const tileX = Math.floor(flight.vNewPosition.x - 9) >> 5;
+                const tileX = Math.floor((flight.vNewPosition.x - 9) / PHYSICAL_TILE_SIZE);
                 if (this._land.getTileCode(tileX, tileY) >= 2) {
                     skull.nFace = 1;
                     flight.vNewSpeed.x = 0;
@@ -1250,7 +1278,12 @@ export class WDGame extends FairyEngine {
         const [p1, p2] = rect.getPoints();
         const cx = (p1.x + p2.x) / 2;
         const cy = (p1.y + p2.y) / 2;
-        if (this._land.getTileCode(Math.floor(cx) >> 5, Math.floor(cy) >> 5) >= 2) {
+        if (
+            this._land.getTileCode(
+                Math.floor(cx / PHYSICAL_TILE_SIZE),
+                Math.floor(cy / PHYSICAL_TILE_SIZE)
+            ) >= 2
+        ) {
             this.createFairy(this._sprites, 'spr_fire', new WDExplosion(cx, cy));
             this._sounds.play('explosion-missile');
             grenade.bDead = true;

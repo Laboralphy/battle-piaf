@@ -1,11 +1,12 @@
-import { Vector2D } from '../core/Vector2D.js';
-import { FairyAnimation } from '../engine/FairyAnimation.js';
-import { FairyCollisionRect } from '../engine/FairyCollision.js';
-import { FairyFlight } from '../engine/FairyFlight.js';
-import { WDPlayer } from './WDPlayer.js';
-import { WDFire } from './WDFire.js';
-import type { SoundId } from './SoundManager.js';
-import WEAPON_DATA from '../data/weapons.json';
+import { Vector2D } from '../../core/Vector2D';
+import { FairyAnimation } from '../../engine/FairyAnimation';
+import { FairyCollisionRect } from '../../engine/FairyCollision';
+import { FairyFlight } from '../../engine/FairyFlight';
+import { WDPlayer } from './WDPlayer';
+import { WDFire } from './WDFire';
+import type { SoundId } from '../SoundManager';
+import WEAPON_DATA from '../../data/weapons.json';
+import { TILE_SIZE } from '../consts';
 
 /** Launch angle from horizontal (radians). */
 const GRENADE_ANGLE = Math.PI / 4;
@@ -48,7 +49,7 @@ export class WDGrenade extends WDFire {
         this.state.damage = WEAPON_DATA.grenade.damage;
         this.state.cost = WEAPON_DATA.grenade.cost;
 
-        this.setSize(16, 16);
+        this.setSize(TILE_SIZE / 2, TILE_SIZE / 2);
         this.setScale(1);
         this.vReference.set(8, 8);
 

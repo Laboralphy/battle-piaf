@@ -1,8 +1,9 @@
-import { Vector2D } from '../core/Vector2D.js';
-import { FairyAnimation, LoopType } from '../engine/FairyAnimation.js';
-import { FairyCollisionRect } from '../engine/FairyCollision.js';
-import { Fairy, FairyBaseEvents } from '../engine/Fairy.js';
-import WEAPON_DATA from '../data/weapons.json';
+import { Vector2D } from '../../core/Vector2D';
+import { FairyAnimation, LoopType } from '../../engine/FairyAnimation';
+import { FairyCollisionRect } from '../../engine/FairyCollision';
+import { Fairy, FairyBaseEvents } from '../../engine/Fairy';
+import WEAPON_DATA from '../../data/weapons.json';
+import { TILE_SIZE } from '../consts';
 
 export type WDFlameEvents = FairyBaseEvents & {
     /** Emitted every SMOKE_INTERVAL ticks so WDGame can spawn a WDExhaust puff. */
@@ -47,7 +48,7 @@ export class WDFlame extends Fairy<WDFlameEvents> {
     constructor(x: number, y: number, vx = Math.random() * 2 - 1, vy = -1) {
         super();
 
-        this.setSize(16, 32);
+        this.setSize(TILE_SIZE / 2, TILE_SIZE);
         this.setScale(1);
         // Anchor near the base so the flame sits flush on the ground when grounded.
         this.vReference.set(8, 28);

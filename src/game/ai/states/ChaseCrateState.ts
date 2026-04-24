@@ -1,6 +1,6 @@
 import { IState } from '../fsm/IState.js';
 import { AIContext } from '../AIContext.js';
-import { WDCrate } from '../../WDCrate.js';
+import { WDCrate } from '../../entities/WDCrate';
 import { NavEdge, EdgeKind } from '../navigation/NavEdge.js';
 // Body-only circular imports resolved via live bindings.
 import { ChaseChoosePlatformState } from './ChaseChoosePlatformState.js';
@@ -12,7 +12,7 @@ import { PonderState } from './PonderState.js';
  * Call this from any state that should opportunistically react to a crate spawn.
  */
 export function tryCreateCrateChase(ctx: AIContext): ChaseCrateState | null {
-    const liveCrates = ctx.crates().filter(c => !c.bDead);
+    const liveCrates = ctx.crates().filter((c) => !c.bDead);
     if (liveCrates.length === 0) {
         return null;
     }
@@ -32,9 +32,7 @@ export function tryCreateCrateChase(ctx: AIContext): ChaseCrateState | null {
     const fromNode = ctx.graph.findBelow(px, py);
     const toNode = ctx.graph.findNearest(best.oFlight.vPosition.x, best.oFlight.vPosition.y);
     const path =
-        fromNode && toNode && fromNode !== toNode
-            ? ctx.query.findPath(fromNode, toNode)
-            : [];
+        fromNode && toNode && fromNode !== toNode ? ctx.query.findPath(fromNode, toNode) : [];
     return new ChaseCrateState(best, path);
 }
 
@@ -113,15 +111,22 @@ export class ChaseCrateState implements IState<AIContext> {
     private _followEdge(ctx: AIContext, kind: EdgeKind, tx: number, ty: number): void {
         const { player, input } = ctx;
         const dx = tx - player.oFlight.vPosition.x;
-        if (dx > 8) input.pressRight();
-        else if (dx < -8) input.pressLeft();
+        if (dx > 8) {
+            input.pressRight();
+        } else if (dx < -8) {
+            input.pressLeft();
+        }
 
         switch (kind) {
             case EdgeKind.JumpUp:
-                if (player.bOnFloor) input.pressJump();
+                if (player.bOnFloor) {
+                    input.pressJump();
+                }
                 break;
             case EdgeKind.DropThrough:
-                if (player.bOnFloor) input.pressDrop();
+                if (player.bOnFloor) {
+                    input.pressDrop();
+                }
                 break;
             case EdgeKind.FallOff:
             default:
@@ -137,12 +142,19 @@ export class ChaseCrateState implements IState<AIContext> {
         // When the crate is below, use a near-zero dead zone so the drone
         // keeps walking toward the edge and falls off rather than stopping short.
         const deadZone = dy > 16 ? 1 : 8;
-        if (dx > deadZone) input.pressRight();
-        else if (dx < -deadZone) input.pressLeft();
+        if (dx > deadZone) {
+            input.pressRight();
+        } else if (dx < -deadZone) {
+            input.pressLeft();
+        }
 
-        if (dy < -24 && player.bOnFloor) input.pressJump();
+        if (dy < -24 && player.bOnFloor) {
+            input.pressJump();
+        }
 
         // Drop through a semi-solid platform when the crate is directly below.
-        if (dy > 16 && player.bOnFloor) input.pressDrop();
+        if (dy > 16 && player.bOnFloor) {
+            input.pressDrop();
+        }
     }
 }

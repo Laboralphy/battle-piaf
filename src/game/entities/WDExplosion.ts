@@ -1,7 +1,8 @@
-import { Vector2D } from '../core/Vector2D.js';
-import { FairyAnimation, LoopType } from '../engine/FairyAnimation.js';
-import { FairyCollisionRect } from '../engine/FairyCollision.js';
-import { Fairy } from '../engine/Fairy.js';
+import { Vector2D } from '../../core/Vector2D';
+import { FairyAnimation, LoopType } from '../../engine/FairyAnimation';
+import { FairyCollisionRect } from '../../engine/FairyCollision';
+import { Fairy } from '../../engine/Fairy';
+import { TILE_SIZE } from '../consts';
 
 /** Ticks each animation frame is held. */
 const ANIM_TICK_DURATION = 4;
@@ -23,7 +24,7 @@ export class WDExplosion extends Fairy {
     constructor(x: number, y: number) {
         super();
 
-        this.setSize(32, 32);
+        this.setSize(TILE_SIZE, TILE_SIZE);
         this.setScale(1);
         // Reference at the visual centre so the explosion is centred on the impact point.
         this.vReference.set(16, 16);

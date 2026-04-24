@@ -1,10 +1,11 @@
-import { Vector2D } from '../core/Vector2D.js';
-import { FairyAnimation } from '../engine/FairyAnimation.js';
-import { FairyCollisionRect } from '../engine/FairyCollision.js';
-import { WDPlayer } from './WDPlayer.js';
-import { WDFire } from './WDFire.js';
-import type { SoundId } from './SoundManager.js';
-import WEAPON_DATA from '../data/weapons.json';
+import { Vector2D } from '../../core/Vector2D';
+import { FairyAnimation } from '../../engine/FairyAnimation';
+import { FairyCollisionRect } from '../../engine/FairyCollision';
+import { WDPlayer } from './WDPlayer';
+import { WDFire } from './WDFire';
+import type { SoundId } from '../SoundManager';
+import WEAPON_DATA from '../../data/weapons.json';
+import { TILE_SIZE } from '../consts';
 
 /** Maximum vertical homing speed in pixels per tick. */
 const MAX_VSPEED = 2.5;
@@ -47,7 +48,7 @@ export class WDMissile extends WDFire {
         this._target = target;
         this._spawnExhaust = spawnExhaust;
 
-        this.setSize(32, 16);
+        this.setSize(TILE_SIZE, TILE_SIZE / 2);
         this.setScale(1);
         // Reference at the horizontal centre, top edge, so the missile tip leads.
         this.vReference.set(16, 0);
@@ -66,13 +67,13 @@ export class WDMissile extends WDFire {
         // Tiles 34-35 wrap to row 1: x=32, y=16 → 32px-stride frame 1 + ySrc=16
         const animRight = new FairyAnimation();
         animRight.setFrameRange(0, 1);
-        animRight.setFrameSource(0, 16);
+        animRight.setFrameSource(0, 8);
         animRight.setNoLoop();
         this.aAnimations.push(animRight);
 
         const animLeft = new FairyAnimation();
         animLeft.setFrameRange(1, 1);
-        animLeft.setFrameSource(0, 16);
+        animLeft.setFrameSource(0, 8);
         animLeft.setNoLoop();
         this.aAnimations.push(animLeft);
 

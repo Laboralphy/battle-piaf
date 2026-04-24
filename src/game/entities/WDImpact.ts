@@ -1,7 +1,8 @@
-import { Vector2D } from '../core/Vector2D.js';
-import { FairyAnimation, LoopType } from '../engine/FairyAnimation.js';
-import { FairyCollisionRect } from '../engine/FairyCollision.js';
-import { Fairy } from '../engine/Fairy.js';
+import { Vector2D } from '../../core/Vector2D';
+import { FairyAnimation, LoopType } from '../../engine/FairyAnimation';
+import { FairyCollisionRect } from '../../engine/FairyCollision';
+import { Fairy } from '../../engine/Fairy';
+import { TILE_SIZE } from '../consts';
 
 /** Ticks each animation frame is held. */
 const ANIM_TICK_DURATION = 4;
@@ -28,7 +29,7 @@ export class WDImpact extends Fairy {
     constructor(x: number, y: number, frameStart: number) {
         super();
 
-        this.setSize(16, 16);
+        this.setSize(TILE_SIZE / 2, TILE_SIZE / 2);
         this.setScale(1);
         this.vReference.set(8, 8);
 

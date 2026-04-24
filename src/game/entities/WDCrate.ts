@@ -1,8 +1,9 @@
-import { Vector2D } from '../core/Vector2D.js';
-import { FairyAnimation } from '../engine/FairyAnimation.js';
-import { FairyCollisionRect } from '../engine/FairyCollision.js';
-import { Fairy, FairyBaseEvents } from '../engine/Fairy.js';
-import { WDPlayer } from './WDPlayer.js';
+import { Vector2D } from '../../core/Vector2D';
+import { FairyAnimation } from '../../engine/FairyAnimation';
+import { FairyCollisionRect } from '../../engine/FairyCollision';
+import { Fairy, FairyBaseEvents } from '../../engine/Fairy';
+import { WDPlayer } from './WDPlayer';
+import { PHYSICAL_TILE_SIZE, TILE_SIZE } from '../consts';
 
 /** What the crate contains. Determines the icon drawn on it and the effect on pickup. */
 export const enum CrateBonus {
@@ -44,7 +45,7 @@ export class WDCrate extends Fairy<WDCrateEvents> {
         super();
         this.bonus = bonus;
 
-        this.setSize(16, 16);
+        this.setSize(TILE_SIZE / 2, TILE_SIZE / 2);
         this.setScale(1);
         // vReference at (8, 8): centre of the rendered 16×16 sprite.
         this.vReference.set(8, 7);
@@ -72,7 +73,7 @@ export class WDCrate extends Fairy<WDCrateEvents> {
      * @param row - Tile row index (0-based); the crate appears above this row.
      * @param tileSize - Size of a single tile in pixels (default 32).
      */
-    placeOnTile(col: number, row: number, tileSize = 32): void {
+    placeOnTile(col: number, row: number, tileSize = PHYSICAL_TILE_SIZE): void {
         this.oFlight.vPosition.set(
             col * tileSize + tileSize / 2, // horizontally centred over the tile
             row * tileSize - 8 // vertically: bottom of 16px crate flush with tile top

@@ -1,6 +1,6 @@
 {
-    "wdbob_land0_z2": {
-        "image": "assets/images/land-tiles/wdbob_land0_z2.png",
+    "wdbob_land0_z1": {
+        "image": "assets/images/land-tiles/wdbob_land0_z1.png",
         "animations": {
             "K.": {
                 "start": 20,

@@ -1,5 +1,5 @@
-import { WDPlayer } from '../WDPlayer.js';
-import { WDCrate } from '../WDCrate.js';
+import { WDPlayer } from '../entities/WDPlayer';
+import { WDCrate } from '../entities/WDCrate';
 import { FairyMatrix } from '../../engine/FairyMatrix.js';
 import { NavGraph } from './navigation/NavGraph.js';
 import { NavQuery } from './navigation/NavQuery.js';

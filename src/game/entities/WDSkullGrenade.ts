@@ -1,8 +1,9 @@
-import { Vector2D } from '../core/Vector2D.js';
-import { FairyAnimation } from '../engine/FairyAnimation.js';
-import { FairyCollisionRect } from '../engine/FairyCollision.js';
-import { FairyFlight } from '../engine/FairyFlight.js';
-import { Fairy } from '../engine/Fairy.js';
+import { Vector2D } from '../../core/Vector2D';
+import { FairyAnimation } from '../../engine/FairyAnimation';
+import { FairyCollisionRect } from '../../engine/FairyCollision';
+import { FairyFlight } from '../../engine/FairyFlight';
+import { Fairy } from '../../engine/Fairy';
+import { TILE_SIZE } from '../consts';
 
 /** Hit points removed from a player on direct contact (before shield reduction). */
 export const SKULL_GRENADE_DAMAGE = 20;
@@ -47,7 +48,7 @@ export class WDSkullGrenade extends Fairy {
     constructor(x: number, y: number, face: number) {
         super();
 
-        this.setSize(16, 16);
+        this.setSize(TILE_SIZE / 2, TILE_SIZE / 2);
         this.setScale(1);
         this.vReference.set(8, 8);
 

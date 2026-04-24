@@ -28,9 +28,9 @@ export class FairyLayer implements IFairyLayer {
         this._canvas.height = h;
     }
 
-    /** Bake the image into the off-screen canvas at (0, 0). */
+    /** Bake the image into the off-screen canvas, scaled to fill the layer. */
     setImage(image: HTMLImageElement): void {
-        this._ctx.drawImage(image, 0, 0);
+        this._ctx.drawImage(image, 0, 0, this._canvas.width, this._canvas.height);
     }
 
     /** Set the main canvas context onto which the layer will be composited. */

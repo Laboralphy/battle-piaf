@@ -2,7 +2,8 @@ import { Vector2D } from '../core/Vector2D.js';
 import { FairyAnimation } from '../engine/FairyAnimation.js';
 import { FairyCollisionRect } from '../engine/FairyCollision.js';
 import { Fairy } from '../engine/Fairy.js';
-import { CrateBonus } from './WDCrate.js';
+import { CrateBonus } from './entities/WDCrate';
+import { TILE_SIZE } from './consts';
 
 /** Tile index in wdspr_fire_z2.png (16×16) for each bonus icon. */
 const BONUS_TILE: Record<CrateBonus, number> = {
@@ -31,7 +32,7 @@ export class WDBonusIndicator extends Fairy {
     constructor(bonus: CrateBonus, x: number, y: number) {
         super();
 
-        this.setSize(16, 16);
+        this.setSize(TILE_SIZE / 2, TILE_SIZE / 2);
         this.setScale(1);
         this.vReference.set(8, 8);
 

@@ -16,10 +16,22 @@ export class Fairies implements IFairyLayer {
     private _ctx: CanvasRenderingContext2D | null = null;
     /** Y coordinate below which any fairy is immediately killed. Defaults to Infinity (off). */
     private _yMax = Infinity;
+    /** Scale factor applied to render positions of all fairies in this layer. */
+    private _renderScale = 1;
 
     /** Set the bottom boundary: any fairy whose Y position exceeds this is marked dead. */
     setYMax(yMax: number): void {
         this._yMax = yMax;
+    }
+
+    /**
+     * Set the render-position scale factor for all fairies in this layer.
+     * Call before linking any fairies (already-linked fairies are not updated).
+     * Use e.g. `TILE_SIZE / PHYSICAL_TILE_SIZE` when the physics world is larger
+     * than the display canvas.
+     */
+    setRenderScale(scale: number): void {
+        this._renderScale = scale;
     }
 
     /** Set the rendering context that will be passed to each linked fairy. */
@@ -33,6 +45,7 @@ export class Fairies implements IFairyLayer {
      */
     linkFairy(fairy: Fairy): void {
         fairy.setContext(this._ctx!);
+        fairy.renderScale = this._renderScale;
         this._fairies.push(fairy);
     }
 

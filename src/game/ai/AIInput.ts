@@ -1,5 +1,5 @@
 import { FairyInputState } from '../../engine/FairyInputState.js';
-import { PlayerKeys } from '../WDPlayer.js';
+import { PlayerKeys } from '../entities/WDPlayer';
 
 /**
  * Virtual input layer for an AI-controlled player.
@@ -28,11 +28,19 @@ export class AIInput extends FairyInputState {
         }
     }
 
-    pressLeft(): void { this.setKeyState(this._bindings.left, true); }
-    pressRight(): void { this.setKeyState(this._bindings.right, true); }
+    pressLeft(): void {
+        this.setKeyState(this._bindings.left, true);
+    }
+    pressRight(): void {
+        this.setKeyState(this._bindings.right, true);
+    }
     /** Request a jump. Only takes effect when the player is on the floor. */
-    pressJump(): void { this.setKeyState(this._bindings.up, true); }
-    pressFire(): void { this.setKeyState(this._bindings.fire, true); }
+    pressJump(): void {
+        this.setKeyState(this._bindings.up, true);
+    }
+    pressFire(): void {
+        this.setKeyState(this._bindings.fire, true);
+    }
     /** Request a drop-through on semi-solid platforms. */
     pressDrop(): void {
         if (this._bindings.down !== undefined) {

@@ -5,36 +5,38 @@ import { Fairy } from '../engine/Fairy.js';
 
 /** Ticks each animation frame is held. */
 const ANIM_TICK_DURATION = 4;
-/** Number of frames in the explosion animation. */
+/** Number of frames in the impact animation. */
 const ANIM_FRAME_COUNT = 3;
 
 /**
- * One-shot explosion effect spawned when a bullet hits a player.
- * Plays a 3-frame animation once (16×16 tiles starting at tile 38,
- * i.e. xSrc=0, ySrc=16 with nFrameStart=6 in `wdspr_fire_z2.png`)
- * and dies when the animation ends.
+ * One-shot impact effect spawned when a projectile hits a player or a tile.
+ * Plays a 3-frame animation once and then dies.
+ *
+ * All frames are 16×16 tiles on row 1 (ySrc = 16) of `wdspr_fire_z2.png`.
+ * The starting tile is caller-supplied:
+ *   6 → bullet impact  (tiles 6–8)
+ *   9 → plasma impact  (tiles 9–11)
  *
  * Tangibility mask 0: purely visual; never participates in collision.
  */
-export class WDBulletExplosion extends Fairy {
+export class WDImpact extends Fairy {
     /**
-     * @param x - World-space X coordinate at the centre of the explosion.
-     * @param y - World-space Y coordinate at the centre of the explosion.
+     * @param x          - World-space X coordinate at the centre of the effect.
+     * @param y          - World-space Y coordinate at the centre of the effect.
+     * @param frameStart - Index of the first tile in the animation strip.
      */
-    constructor(x: number, y: number) {
+    constructor(x: number, y: number, frameStart: number) {
         super();
 
         this.setSize(16, 16);
         this.setScale(1);
         this.vReference.set(8, 8);
 
-        // Tangibility mask 0: never matches anything
         this.setBoundingShape(new FairyCollisionRect(new Vector2D(0, 0), new Vector2D(0, 0)), 0);
 
-        // 3-frame explosion: tile 38 = row 1 col 6 → xSrc=0, ySrc=16, frameStart=6
         const anim = new FairyAnimation();
-        anim.setFrameRange(6, ANIM_FRAME_COUNT);
-        anim.setFrameSource(0, 16);
+        anim.setFrameRange(frameStart, ANIM_FRAME_COUNT);
+        anim.setFrameSource(0, 0);
         anim.setLoop(LoopType.Forward, 1, ANIM_TICK_DURATION, 1);
         this.aAnimations.push(anim);
         this.playAnimation(0);

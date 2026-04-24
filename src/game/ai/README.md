@@ -80,14 +80,14 @@ Called once with `graph.build(land)` during `AIController` construction.
 
 **Physics constants used for envelope calculations:**
 
-| Constant             | Value           |
-|----------------------|-----------------|
-| Jump speed (upward)  | 6.9 px/tick     |
-| Gravity              | 0.25 px/tick²   |
-| Max jump height      | ~95 px (≈3 tiles)|
-| Player horizontal speed | 3 px/tick    |
-| Max horizontal reach | ~165 px         |
-| Semi-solid snap zone | 16 px           |
+| Constant                | Value            |
+|-------------------------|------------------|
+| Jump speed (upward)     | 6.9 px/tick      |
+| Gravity                 | 0.25 px/tick²    |
+| Max jump height         | ~95 px (≈3 tiles)|
+| Player horizontal speed | 3 px/tick        |
+| Max horizontal reach    | ~165 px          |
+| Semi-solid snap zone    | 16 px            |
 
 **Spatial queries:**
 
@@ -105,20 +105,19 @@ query.findPath(fromNode, toNode)  →  NavEdge[]
 
 Heuristic: Euclidean distance between node centres.
 Edge costs are defined in `NavEdge` (see table above).
-The reconstructed path is stored in `ctx.path` and consumed front-to-back by `ChaseState`.
 
 ### 1.6 Platform — `navigation/Platform.ts`
 
 A group of horizontally contiguous same-row nodes forming one surface.
 
 ```
-platform.row        // tile row
-platform.y          // world-space y of the surface (feet level)
-platform.xMin/xMax  // pixel boundaries (left edge of leftmost / right edge of rightmost tile)
-platform.centerX    // pixel centre of the platform
-platform.width      // pixel width
-platform.isSemiSolid // true when every tile in the platform has code 1
-platform.containsX(px)  // true when px is within the horizontal span
+platform.row          // tile row
+platform.y            // world-space y of the surface (feet level)
+platform.xMin/xMax    // pixel boundaries
+platform.centerX      // pixel centre of the platform
+platform.width        // pixel width
+platform.isSemiSolid  // true when every tile in the platform has code 1
+platform.containsX(px)
 ```
 
 ### 1.7 NavTopology — `navigation/NavTopology.ts`
@@ -130,18 +129,18 @@ Built once with `topology.build(graph.nodes, land)` during `AIController` constr
 1. Nodes are grouped by row.
 2. Within each row, nodes are sorted by column, then split into runs where
    consecutive columns differ by more than 1 (gap in the platform).
-3. Each run becomes one `Platform`. `isSemiSolid` is true only when every tile in the
-   run has code 1.
+3. Each run becomes one `Platform`. `isSemiSolid` is true only when every tile
+   in the run has code 1.
 
 **Queries:**
 
-| Method                          | Returns                                                         |
-|---------------------------------|-----------------------------------------------------------------|
-| `platformAt(px, py)`            | Platform the entity stands on, or `null` if airborne           |
-| `platformOf(node)`              | Platform that owns a specific NavNode                          |
-| `platformsAtRow(row)`           | All platforms at a given tile row                              |
-| `platformsAtSameHeight(ref)`    | All platforms at the same row as `ref`, excluding `ref` itself |
-| `isAirborne(px, py)`            | `true` when no platform contains the position                  |
+| Method                          | Returns                                                          |
+|---------------------------------|------------------------------------------------------------------|
+| `platformAt(px, py)`            | Platform the entity stands on, or `null` if airborne            |
+| `platformOf(node)`              | Platform that owns a specific NavNode                           |
+| `platformsAtRow(row)`           | All platforms at a given tile row                               |
+| `platformsAtSameHeight(ref)`    | All platforms at the same row as `ref`, excluding `ref` itself  |
+| `isAirborne(px, py)`            | `true` when no platform contains the position                   |
 
 ---
 
@@ -169,21 +168,22 @@ Transitions can also be triggered externally via `fsm.transition(next)` — used
 
 ### 2.3 AIContext — `AIContext.ts`
 
-Read-only world snapshot plus mutable state fields, passed to every `IState` each tick.
+Shared read-only world snapshot plus mutable state, passed to every `IState` each tick.
+Path and per-state data are **not** stored here — they travel via constructor injection
+so ownership stays explicit.
 
 ```typescript
 interface AIContext {
-    player:        WDPlayer;          // the drone
-    opponent:      WDPlayer;          // the human player
-    input:         AIInput;           // virtual keyboard the state writes to
-    land:          FairyMatrix;       // arena tile map
-    graph:         NavGraph;
-    query:         NavQuery;
-    topology:      NavTopology;
-    path:          NavEdge[];         // current A* path (mutable, consumed by ChaseState)
-    replanCooldown: number;           // ticks before next replan
-    profile:       AIProfile;        // active personality (read-only)
-    debugCanvas?:  HTMLCanvasElement; // optional overlay for NavGraph visualisation
+    player:    WDPlayer;          // the drone
+    opponent:  WDPlayer;          // the human player
+    input:     AIInput;           // virtual keyboard the state writes to
+    land:      FairyMatrix;       // arena tile map
+    graph:     NavGraph;
+    query:     NavQuery;
+    topology:  NavTopology;
+    profile:   AIProfile;         // active personality (read-only)
+    crates:    () => readonly WDCrate[];  // live crate list (polled each tick)
+    debugCanvas?: HTMLCanvasElement;
 }
 ```
 
@@ -195,7 +195,7 @@ passed directly to `player.updateState()`.
 States call these each tick:
 
 ```typescript
-input.releaseAll()   // clear all keys at the start of each tick
+input.releaseAll()   // must be called at the start of each tick
 input.pressLeft()
 input.pressRight()
 input.pressJump()
@@ -210,23 +210,31 @@ input.pressDrop()    // drop through semi-solid platforms
 ### State transition diagram
 
 ```
-                   ┌──────────────────────────────────────────────┐
-                   │               [hit received]                  │
-                   │         (only if evadeOnHit=true)             ▼
-  [start] ──► NullState     EvadeState ◄──────────── any state
-                   │              │
-  [start] ──► BasicState         └── timer expired ──► ChaseState
-                   │                                        │
-  [start] ──► ChaseState ◄── PonderState                   │
-                   │              ▲                         │
-                   │         timeout (600 t)                │
-                   │              │                         ▼
-                   └──────────────┘              AttackState
-                                                      │
-                                              disengage range
-                                                      │
-                                                      ▼
-                                                 ChaseState
+                 [hit received, evadeOnHit=true]
+                           │
+                           ▼
+  [start] ──► NullState    EvadeState ◄──── any chase/station state
+                                │
+                         timer expires
+                                │
+                                ▼
+  [start] ──► BasicState  (never transitions)
+
+  [start] ──► ChaseChoosePlatformState ◄──────────────────────────┐
+                    │  (single-tick scorer)                        │
+                    ▼                                              │
+            ChaseProceedToPlatformState ──── crate spotted ──► ChaseCrateState
+                    │   │   │                                      │
+              arrived│   │timeout                           crate gone│timeout
+                     │   │                                      │      │
+                     ▼   ▼                                      ▼      ▼
+               StationState   PonderState ◄─── replan ── ChaseChoosePlatformState
+                    │              │
+              opponent row         └── always ──► ChaseChoosePlatformState
+              changed (1 s)
+                    │
+                    ▼
+               PonderState
 ```
 
 ### 3.1 NullState — `states/NullState.ts`
@@ -239,7 +247,7 @@ Ranged-shooter behavior. Does not use NavGraph or A*.
 
 Each tick:
 1. **Horizontal positioning** — maintain `preferredDistMin`–`preferredDistMax` from opponent.
-   - Too close → back away (with 32 px hysteresis to avoid flip-flopping on the boundary).
+   - Too close → back away (32 px hysteresis to avoid flip-flopping on the boundary).
    - Too far → approach.
    - In band → hold.
 2. **Vertical** — jump when opponent is >32 px higher.
@@ -249,79 +257,106 @@ Each tick:
 
 Never transitions to another state.
 
-### 3.3 ChaseState — `states/ChaseState.ts`
+### 3.3 ChaseChoosePlatformState — `states/ChaseChoosePlatformState.ts`
 
-Navigates toward the opponent using A* over the NavGraph.
+Single-tick decision state. Produces no movement.
+
+**Each tick (exactly one):**
+1. Find the opponent's current platform via `topology.platformAt()`.
+2. Score all peer platforms at the same height using three criteria:
+   - **Distance score** — prefer horizontal distance from opponent close to `(preferredDistMin + preferredDistMax) / 2`. Weight: 1.0.
+   - **Width score** — wider platforms offer more dodging room. Weight: 0.05.
+   - **Proximity score** — prefer platforms already close to the drone (shorter path). Weight: 0.02.
+3. Compute an A* path to the winning platform (targeting the node closest to the drone).
+4. Immediately transition to `ChaseProceedToPlatformState(platform, path)`.
+
+Fallbacks: if the opponent is airborne → target the drone's own platform; if no peer platforms exist → target the opponent's platform directly.
+
+### 3.4 ChaseProceedToPlatformState — `states/ChaseProceedToPlatformState.ts`
+
+Path-execution state. Follows the A* edge list computed by `ChaseChoosePlatformState`.
 
 **Each tick:**
-1. Check attack range → transition to `AttackState` if `|dx| < attackRangeX && |dy| < attackRangeY`.
-2. Increment timeout timer → transition to `PonderState` after 600 ticks.
-3. Replan path every 10–90 ticks (randomised to break repetition).
-4. Advance to the next waypoint when `bOnFloor && |dx| < 24 && |dy| < 36`.
-5. Follow the current edge kind:
-   - `Walk` — horizontal movement only.
-   - `JumpUp` — jump immediately on grounding, no prior alignment check.
+1. Check for live crates → transition to `ChaseCrateState` if found.
+2. Check opponent's platform row against the row recorded at `onEnter` → if changed, transition to `ChaseChoosePlatformState` (path is stale).
+3. Increment timeout → transition to `PonderState` after 600 ticks.
+4. Check arrival: if drone is on the target platform and path is empty → transition to `StationState`.
+5. Follow the current edge:
+   - `Walk` — horizontal movement.
+   - `JumpUp` — jump immediately when grounded (no alignment wait).
    - `DropThrough` — press `down` when grounded.
-   - `FallOff` — horizontal movement only (gravity does the rest).
-6. If no path exists, move directly toward the opponent.
+   - `FallOff` — horizontal movement only.
+6. If path is exhausted but not yet on platform → `_moveDirect` to platform centre.
 7. Spontaneous random jump per `profile.randomJumpChance`.
 
-### 3.4 ChaseDebugState — `states/ChaseDebugState.ts`
+### 3.5 StationState — `states/StationState.ts`
 
-Extends `ChaseState`. After each tick, draws a debug overlay on `ctx.debugCanvas`:
-- All edges, colour-coded by kind (semi-transparent).
-- All nodes as dots.
-- Current A* path as a white line.
-- `fromNode` (drone's platform) in cyan; `toNode` (opponent's platform) in red.
-- Drone and opponent positions as crosses.
-- Legend.
+Hold the chosen platform and fire at the opponent from range.
 
-Activate with `initialState: 'chase-debug'` in the profile.
+**Each tick:**
+1. Check for live crates → transition to `ChaseCrateState` if found.
+2. Track opponent's platform row; if they are off the expected row for **60 consecutive ticks** (~1 s) → transition to `PonderState`. Brief jumps do not trigger a replan.
+3. Face the opponent and fire on `profile.fireCooldown`.
+   - Only presses a direction key when `player.nFace !== requiredFace` to avoid drifting 3 px toward the opponent every shot.
+4. Jump when opponent is >32 px higher.
+5. Spontaneous random jump per `profile.randomJumpChance`.
 
-### 3.5 AttackState — `states/AttackState.ts`
+### 3.6 ChaseCrateState — `states/ChaseCrateState.ts`
 
-Stay near the opponent and fire repeatedly.
-- Minimum dwell: 30 ticks before reconsidering distance.
-- Fires on `profile.fireCooldown` interval.
-- Drifts horizontally toward the opponent; jumps if opponent is >32 px higher.
-- Returns to `ChaseState` when `|dx| > disengageX || |dy| > disengageY`.
+Navigate toward a live crate and pick it up. Does not fire.
 
-### 3.6 EvadeState — `states/EvadeState.ts`
+Constructed by the `tryCreateCrateChase(ctx)` helper, which:
+- Filters `ctx.crates()` to live crates only.
+- Finds the closest one by Euclidean distance.
+- Computes an A* path to it.
+- Returns a ready `ChaseCrateState`, or `null` if no crates exist.
 
-Move away from the opponent for `profile.evadeDuration` ticks.
-- Triggered externally by `AIController` on the `'damaged'` observer event.
-- Random jump chance is `max(profile.randomJumpChance, 0.05)` to dodge follow-up shots.
-- Returns to `ChaseState` when timer expires.
+`tryCreateCrateChase` is called opportunistically at the start of every tick in
+`ChaseProceedToPlatformState`, `StationState`, and `PonderState`.
+
+**Each tick:**
+1. If crate is dead (picked up or expired) → `ChaseChoosePlatformState`.
+2. Increment timeout → `PonderState` after 600 ticks.
+3. Follow path to crate; when path exhausted, `_moveDirect` with a near-zero
+   dead zone so the drone walks off platform edges to reach crates below.
+   Also presses `down` when the crate is directly below on a semi-solid platform.
 
 ### 3.7 PonderState — `states/PonderState.ts`
 
-A deliberate 30-tick pause (≈0.5 s) triggered by `ChaseState` timeout.
-The drone stands still while the `_analyse()` method:
-1. Finds the opponent's current platform via `topology.platformAt()`.
-2. Finds all peer platforms at the same height via `topology.platformsAtSameHeight()`.
-3. Identifies the peer closest to the drone — this is the **tactically preferred position**.
+30-tick pause (~0.5 s). The drone stands still.
 
-Currently always returns to `ChaseState` after the pause.
-**Future:** navigate toward the identified platform instead of rushing directly at the opponent.
+At the end of the pause, `_nextState()` is called:
+1. If any live crate exists → `ChaseCrateState`.
+2. Otherwise → `ChaseChoosePlatformState`.
+
+### 3.8 EvadeState — `states/EvadeState.ts`
+
+Move away from the opponent for `profile.evadeDuration` ticks.
+
+Triggered externally by `AIController` on the `'damaged'` observer event (only when
+`profile.evadeOnHit = true`).
+
+- Random jump chance is `max(profile.randomJumpChance, 0.05)` to dodge follow-up shots.
+- Returns to `ChaseChoosePlatformState` when timer expires.
 
 ---
 
 ## 4. AIProfile — `AIProfile.ts`
 
-A profile is a plain object that tunes all behavior parameters. It is set at
-construction time and never changes during a match.
+A profile is a plain object that tunes all behavior parameters. Set at construction,
+never changed during a match.
 
 ```typescript
 interface AIProfile {
     name:             string;
     initialState:     'null' | 'basic' | 'chase' | 'chase-debug';
-    preferredDistMin: number;   // px — BasicState: start backing below this
-    preferredDistMax: number;   // px — BasicState: approach above this
-    attackRangeX:     number;   // px — ChaseState → AttackState trigger
+    preferredDistMin: number;   // px — used by ChaseChoosePlatformState scoring
+    preferredDistMax: number;   // px — used by ChaseChoosePlatformState scoring
+    attackRangeX:     number;   // px — unused in current chase pipeline (legacy)
     attackRangeY:     number;   // px
-    disengageX:       number;   // px — AttackState → ChaseState trigger
+    disengageX:       number;   // px
     disengageY:       number;   // px
-    fireCooldown:     number;   // ticks between shots
+    fireCooldown:     number;   // ticks between shots (StationState)
     evadeOnHit:       boolean;  // trigger EvadeState on hit?
     evadeDuration:    number;   // ticks of evasion
     randomJumpChance: number;   // probability per tick of a spontaneous jump (0–1)
@@ -330,13 +365,13 @@ interface AIProfile {
 
 ### Preset profiles
 
-| Profile          | Strategy     | Behaviour                                                |
-|------------------|--------------|----------------------------------------------------------|
-| `PROFILE_NULL`   | `null`       | Does nothing. For isolated testing.                      |
-| `PROFILE_BASIC`  | `basic`      | Ranged shooter, stays 4–6 tiles away, hops to dodge.    |
-| `PROFILE_HUNTER` | `chase`      | Aggressive chaser, evades after being hit.               |
-| `PROFILE_BERSERKER` | `chase`   | Maximum aggression, never evades, high fire rate.        |
-| `PROFILE_CAUTIOUS` | `chase`    | Large attack range, long evasion, random dodges.         |
+| Profile             | Strategy | Behaviour                                                          |
+|---------------------|----------|--------------------------------------------------------------------|
+| `PROFILE_NULL`      | `null`   | Does nothing. For isolated testing.                                |
+| `PROFILE_BASIC`     | `basic`  | Ranged shooter; stays 4–6 tiles away; hops to dodge.              |
+| `PROFILE_HUNTER`    | `chase`  | Aggressive platform chaser; evades after being hit.               |
+| `PROFILE_BERSERKER` | `chase`  | Maximum aggression; never evades; high fire rate.                 |
+| `PROFILE_CAUTIOUS`  | `chase`  | Large attack range; long evasion; random dodges.                  |
 
 ---
 
@@ -345,17 +380,28 @@ interface AIProfile {
 Entry point. Owns the FSM, the nav system, and the virtual input.
 
 ```typescript
-new AIController(player, opponent, land, keys, profile, debugCanvas?)
+new AIController(
+    player,       // WDPlayer — the drone
+    opponent,     // WDPlayer — the human
+    land,         // FairyMatrix — arena tile map
+    keys,         // PlayerKeys — drone's key bindings
+    profile,      // AIProfile
+    debugCanvas,  // HTMLCanvasElement — optional debug overlay
+    getCrates     // () => WDCrate[] — live crate list supplier (default: () => [])
+)
 ```
 
-Construction sequence:
+**Construction sequence:**
 1. Create `AIInput` with the player's key bindings.
 2. `NavGraph.build(land)` — scan tile map, build nodes and edges.
 3. `NavTopology.build(graph.nodes, land)` — group nodes into platforms.
 4. Populate `AIContext`.
-5. Create `StateMachine`, transition to `_initialState(profile)`.
-6. If `profile.evadeOnHit`, attach an `Observer` on the player's `'damaged'` event that
-   immediately transitions to `EvadeState`.
+5. Create `StateMachine`, transition to `_initialState(profile)`:
+   - `'null'` → `NullState`
+   - `'basic'` → `BasicState`
+   - `'chase'` / `'chase-debug'` → `ChaseChoosePlatformState`
+6. If `profile.evadeOnHit`, attach an `Observer` on the `'damaged'` event that
+   immediately transitions the FSM to `EvadeState`.
 
 Per tick: `aiController.update()` → `fsm.update()` → active state ticks.
 
@@ -364,13 +410,15 @@ Per tick: `aiController.update()` → `fsm.update()` → active state ticks.
 ## 6. Integration in WDGame
 
 ```typescript
-// Initialisation
+// Initialisation (in _initRound)
 this._aiController = new AIController(
     this._players[1],   // drone
     this._players[0],   // human
     this._land,
     PLAYER_KEYS[1],
-    PROFILE_NULL        // change profile here to enable AI
+    PROFILE_HUNTER,     // swap profile here
+    this._text.canvas,  // debug canvas (the text layer)
+    () => this._activeCrates
 );
 
 // Each tick (stateGameRunning)
@@ -382,8 +430,7 @@ if (player.nCode === 1 && this._aiController) {
 }
 ```
 
-To activate a different profile, replace `PROFILE_NULL` with any of the preset
-profiles imported from `AIProfile.ts`.
+To disable AI and restore two-player mode: pass `null` or set `_options.aiControlled = false`.
 
 ---
 
@@ -399,31 +446,33 @@ src/game/ai/
 │   ├── IState.ts
 │   └── StateMachine.ts
 ├── navigation/
-│   ├── NavConsts.ts       TILE_SIZE = 32
+│   ├── NavConsts.ts          TILE_SIZE = 32
 │   ├── NavNode.ts
-│   ├── NavEdge.ts         EdgeKind enum + cost table
-│   ├── NavGraph.ts        build() + findNearest() + findBelow()
-│   ├── NavQuery.ts        A* → NavEdge[]
+│   ├── NavEdge.ts            EdgeKind enum + cost table
+│   ├── NavGraph.ts           build() + findNearest() + findBelow()
+│   ├── NavQuery.ts           A* → NavEdge[]
 │   ├── Platform.ts
-│   └── NavTopology.ts     build() + platformAt() + platformsAtSameHeight() …
+│   └── NavTopology.ts        build() + platformAt() + platformsAtSameHeight() …
 └── states/
     ├── NullState.ts
     ├── BasicState.ts
-    ├── ChaseState.ts
-    ├── ChaseDebugState.ts
-    ├── AttackState.ts
-    ├── EvadeState.ts
-    └── PonderState.ts
+    ├── ChaseChoosePlatformState.ts   scores platforms, picks target, builds A* path
+    ├── ChaseProceedToPlatformState.ts  follows path, detects arrival / stale opponent
+    ├── StationState.ts               holds platform, fires, detects opponent row change
+    ├── ChaseCrateState.ts            chases nearest crate; tryCreateCrateChase() helper
+    ├── PonderState.ts                brief pause before next ChaseChoosePlatform cycle
+    └── EvadeState.ts                 runs away after taking a hit
 ```
 
 ---
 
 ## 8. Known limitations / planned work
 
-- **PonderState tactical routing** — `_analyse()` identifies the best same-height
-  platform but currently still falls back to `ChaseState`. A future `StationState`
-  will navigate the drone to that position and hold it.
-- **Positioning in BasicState** — no NavGraph usage; the drone may get stuck behind
-  a wall when trying to maintain preferred distance.
+- **Platform scoring** — `preferredDistMin/Max` are used as a firing-range hint in
+  `ChaseChoosePlatformState`, but profiles using `'chase'` currently set those fields
+  to 0. A dedicated scoring weight for these profiles would sharpen platform selection.
+- **BasicState nav** — no NavGraph usage; the drone can get stuck behind a wall when
+  trying to maintain preferred distance. Considered low priority since `BasicState` is
+  mainly a showcase profile.
 - **Weapon** — a Chinese-lantern projectile (floating balloon that explodes with a
   firework effect) is planned as a new weapon type.

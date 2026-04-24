@@ -4,19 +4,23 @@
         "cost": 16
     },
     "plasma": {
-        "damage": 12,
+        "damage": 14,
         "cost": 20
     },
     "missile": {
-        "damage": 20,
+        "damage": 25,
         "cost": 50
     },
     "grenade": {
-        "damage": 24,
+        "damage": 30,
         "cost": 50
     },
     "flame": {
         "damage": 18,
         "cost": 0
+    },
+    "bouncingBullet": {
+        "damage": 10,
+        "cost": 18
     }
 }

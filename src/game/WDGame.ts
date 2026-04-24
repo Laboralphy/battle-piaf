@@ -20,14 +20,14 @@ import { WDGrenade } from './WDGrenade.js';
 import { WDFire } from './WDFire.js';
 import { WDExhaust } from './WDExhaust.js';
 import { WDExplosion } from './WDExplosion.js';
-import { WDBulletExplosion } from './WDBulletExplosion.js';
+import { WDImpact } from './WDImpact.js';
 import { WDPlasmaBall } from './WDPlasmaBall.js';
-import { WDPlasmaImpact } from './WDPlasmaImpact.js';
 import { CrateBonus, WDCrate } from './WDCrate.js';
 import { WDBonusIndicator } from './WDBonusIndicator.js';
 import { WDSkull } from './WDSkull.js';
 import { WDSkullGrenade } from './WDSkullGrenade.js';
 import { WDFlame } from './WDFlame.js';
+import { WDBouncingBullet } from './WDBouncingBullet.js';
 import { TILE_DATA } from './tile-animations';
 import LOOT_DATA from '../data/loot.json';
 import { FairyLayer } from '../engine/FairyLayer';
@@ -94,7 +94,7 @@ const TWO_HIT_MISSILE_DELAY = Math.trunc(3 * TICKS_PER_SECOND);
 /** Vertical speed (px/tick) of the angled bullets in triple-bullet mode. */
 const TRIPLE_BULLET_VSPEED = 2;
 /** Duration of a round, in ticks (~3 min at 60 Hz). */
-const ROUND_DURATION_TICKS = 3 * 60 * TICKS_PER_SECOND;
+const ROUND_DURATION_TICKS = 100 * TICKS_PER_SECOND;
 /** How long the winner screen stays up before the next round starts, in ticks. */
 const ROUND_OVER_DISPLAY_TICKS = 5 * TICKS_PER_SECOND;
 
@@ -377,13 +377,26 @@ export class WDGame extends FairyEngine {
                 const heightDiff = enemy.oFlight.vPosition.y - player.oFlight.vPosition.y;
                 if (heightDiff > GRENADE_HEIGHT_THRESHOLD) {
                     this._fireProjectile(player, new WDGrenade(player));
-                } else if (player.store.state.plasmaBallCount > 0) {
-                    player.store.state.plasmaBallCount--;
-                    this._fireProjectile(player, new WDPlasmaBall(player));
-                } else if (player.store.state.tripleBullet) {
-                    this._fireTripleBullet(player);
                 } else {
-                    this._fireProjectile(player, new WDBullet(player));
+                    const ss = player.store.state;
+                    switch (ss.specialWeapon) {
+                        case 1:
+                            this._fireTripleBullet(player);
+                            break;
+                        case 2:
+                            this._fireProjectile(player, new WDPlasmaBall(player));
+                            break;
+                        case 3:
+                            this._fireProjectile(player, new WDBouncingBullet(player));
+                            break;
+                        default:
+                            this._fireProjectile(player, new WDBullet(player));
+                            break;
+                    }
+                    if (ss.specialWeapon !== 0 && --ss.specialWeaponAmmo <= 0) {
+                        ss.specialWeapon = ss.defaultWeapon;
+                        ss.specialWeaponAmmo = 0;
+                    }
                 }
             }
         }
@@ -500,7 +513,8 @@ export class WDGame extends FairyEngine {
         ss.shield = false;
         ss.shieldTime = 0;
         ss.powerBoostTime = 0;
-        ss.plasmaBallCount = 0;
+        ss.specialWeapon = ss.defaultWeapon;
+        ss.specialWeaponAmmo = 0;
         ss.bulletHitStreak = 0;
         ss.bulletHitLastTick = -1;
         const spawnPos =
@@ -806,10 +820,12 @@ export class WDGame extends FairyEngine {
     private _explodeProjectile(fire: WDFire, x: number, y: number): void {
         const ex =
             fire instanceof WDPlasmaBall
-                ? new WDPlasmaImpact(x, y)
-                : fire instanceof WDBullet
-                  ? new WDBulletExplosion(x, y)
-                  : new WDExplosion(x, y);
+                ? new WDImpact(x, y, 41)
+                : fire instanceof WDBouncingBullet
+                  ? new WDImpact(x, y, 76)
+                  : fire instanceof WDBullet
+                    ? new WDImpact(x, y, 38)
+                    : new WDExplosion(x, y);
         this.createFairy(this._sprites, 'spr_fire', ex);
         fire.bDead = true;
         this._sounds.play(fire.soundOnExplosion);
@@ -832,6 +848,10 @@ export class WDGame extends FairyEngine {
         const cx = (p1.x + p2.x) / 2;
         const cy = (p1.y + p2.y) / 2;
         if (this._land.getTileCode(Math.floor(cx) >> 5, Math.floor(cy) >> 5) >= 2) {
+            // Bouncing bullet: first hit ricochets, second hit explodes.
+            if (fire instanceof WDBouncingBullet && fire.tryBounce()) {
+                return;
+            }
             this._explodeProjectile(fire, cx, cy);
         }
     }
@@ -955,7 +975,14 @@ export class WDGame extends FairyEngine {
     }
 
     private _bonusBoost(player: WDPlayer): void {
-        player.store.state.plasmaBallCount += 10;
+        // Pick a random special weapon (1–3); re-roll if the player already has it.
+        const ss = player.store.state;
+        let weapon = 1 + Math.floor(Math.random() * 3); // 1, 2, or 3
+        if (weapon === ss.specialWeapon) {
+            weapon = (weapon % 3) + 1; // cycle to avoid the same weapon
+        }
+        ss.specialWeapon = weapon;
+        ss.specialWeaponAmmo = 10;
     }
 
     /**
@@ -1263,6 +1290,8 @@ export class WDGame extends FairyEngine {
 
     /** Draw the winner overlay directly onto the game canvas. */
     private _drawWinnerScreen(): void {
+        this._sounds.stopBGM();
+        this.clearLayers();
         const canvas = this.getCanvas();
         const ctx = canvas.getContext('2d')!;
         const w = canvas.width;
@@ -1273,8 +1302,7 @@ export class WDGame extends FairyEngine {
 
         const s0 = this._players[0].store.state.score;
         const s1 = this._players[1].store.state.score;
-        const winnerText =
-            s0 > s1 ? 'PLAYER 1 WINS!' : s1 > s0 ? 'PLAYER 2 WINS!' : 'DRAW!';
+        const winnerText = s0 > s1 ? 'PLAYER 1 WINS!' : s1 > s0 ? 'PLAYER 2 WINS!' : 'DRAW!';
 
         ctx.textAlign = 'center';
         ctx.fillStyle = '#ffffff';
@@ -1292,8 +1320,6 @@ export class WDGame extends FairyEngine {
      * from the current one), and rebuilds the round via `_initRound`.
      */
     private _doRoundReset(): string {
-        this._sounds.stopBGM();
-        this.clearLayers();
         const prev = this._levelIndex;
         do {
             this._levelIndex = Math.floor(Math.random() * LEVELS.length);

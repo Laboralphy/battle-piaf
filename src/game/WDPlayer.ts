@@ -98,16 +98,17 @@ export class WDPlayer extends Fairy<WDPlayerEvents> {
         bulletHitStreakMax: 0,
         bulletHitStreakTime: 0,
         bulletHitLastTick: -1,
-        tripleBullet: true,
         displayed: false,
         energy: 100,
         maxEnergy: 100,
         shield: false,
         shieldTime: 0,
         powerBoostTime: 0,
-        plasmaBallCount: 0,
         fireCount: 0,
         enemyHit: 0,
+        specialWeapon: 3,
+        specialWeaponAmmo: 0,
+        defaultWeapon: 3,
     });
 
     /**
@@ -122,7 +123,9 @@ export class WDPlayer extends Fairy<WDPlayerEvents> {
         ss.shield = false;
         ss.shieldTime = 0;
         ss.powerBoostTime = 0;
-        ss.plasmaBallCount = 0;
+        ss.specialWeapon = 0;
+        ss.specialWeaponAmmo = 0;
+        ss.defaultWeapon = 2;
         ss.bulletHitStreak = 0;
         ss.bulletHitLastTick = -1;
         this.oBoundingShape.setTangibilityMask(0);

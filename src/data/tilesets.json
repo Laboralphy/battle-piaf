@@ -1,4 +1,8 @@
 {
+    "wdbob_land1_z1": {
+        "image": "assets/images/land-tiles/wdbob_land1_z1.png",
+        "animations": {}
+    },
     "wdbob_land0_z1": {
         "image": "assets/images/land-tiles/wdbob_land0_z1.png",
         "animations": {

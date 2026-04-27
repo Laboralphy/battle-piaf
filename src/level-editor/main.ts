@@ -162,6 +162,7 @@ const BACKGROUNDS_PATH = 'assets/images/backgrounds/';
 
 const TILESHEETS: Record<string, string> = {
     wdbob_land0_z1: `${LAND_TILES}wdbob_land0_z1.png`,
+    wdbob_land1_z1: `${LAND_TILES}wdbob_land1_z1.png`,
 };
 
 const BACKGROUNDS: Record<string, string> = {

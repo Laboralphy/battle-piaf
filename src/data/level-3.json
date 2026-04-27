@@ -1,0 +1,22 @@
+{
+    "tileset": "wdbob_land1_z1",
+    "background": "assets/images/backgrounds/background-0.png",
+    "map": [
+        "1#1#1#1#1#1#1#1#1#1#1#1#1#1#1#1#1#1#1#1#",
+        "1#s.s.s.s.s.s.s.s.s.s.s.s.s.s.s.s.s.s.1#",
+        "1#s.s.s.s.s.s.s.s.s.s.s.s.s.s.s.s.s.s.1#",
+        "1#s.s.s.s.s.s.s.s.s.s.s.s.s.s.s.s.s.s.1#",
+        "1#s.s.s.s.s.s.s.s.s.s.s.s.s.s.s.s.s.s.1#",
+        "1#s.s.s.s.s.s.s.s.s.s.s.s.s.s.s.s.s.s.1#",
+        "1#s.j.l.k.k.l.j.s.s.s.s.s.s.s.s.s.s.s.1#",
+        "1#s.1*1*1*1*1*1*s.s.s.H.s.s.s.s.s.s.s.1#",
+        "1#s.n.n.n.n.n.n.s.s.j.b.k.l.k.s.s.k.l.1#",
+        "1#s.1.s.s.s.s.1.s.s.1*1*1*1*1*s.s.1#1#1#",
+        "1#k.f.h.i.h.j.f.s.s.n.n.n.n.n.s.s.1#1#1#",
+        "1#5*5*5*5*5*5*5*s.s.1.s.s.s.1.s.s.1#s.1#",
+        "1#r.r.r.r.r.r.3.s.s.L.s.s.s.L.s.s.s.s.1#",
+        "1#6.g.h.i.h.W.5.s.h.f.F.G.g.f.l.k.h.X.1#",
+        "1#1#1#1#1#1#1#1#1#1#1#1#1#1#1#1#1#1#1#1#"
+    ],
+    "music": "einstei2"
+}

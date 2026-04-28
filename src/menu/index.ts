@@ -1,10 +1,19 @@
 import { WDGame } from '../game/WDGame.js';
 import { Marquee } from './Marquee.js';
 import { MARQUEE_TEXT } from './text';
-import { LEVELS } from '../game/levels.js';
 
 function setActive(id: string, active: boolean): void {
     document.getElementById(id)?.setAttribute('data-active', String(active));
+}
+
+function gameStart(aiControlled: boolean): void {
+    setActive('menu', false);
+    setActive('game-screen', true);
+    setActive('round-timer', true);
+    setActive('controls', true);
+
+    const game = new WDGame({ aiControlled });
+    game.start();
 }
 
 export function initMenu(): void {
@@ -12,14 +21,7 @@ export function initMenu(): void {
     if (menuEl) {
         new Marquee(menuEl, MARQUEE_TEXT);
     }
-}
 
-export function gameStart(): void {
-    globalThis.removeEventListener('keydown', gameStart);
-    setActive('menu', false);
-    setActive('game-screen', true);
-    setActive('controls', true);
-
-    const game = new WDGame({ aiControlled: true });
-    game.start();
+    document.getElementById('btn-1p')?.addEventListener('click', () => gameStart(true));
+    document.getElementById('btn-2p')?.addEventListener('click', () => gameStart(false));
 }

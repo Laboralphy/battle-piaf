@@ -1,8 +1,8 @@
 import type { LevelData } from '../game/levels';
-import level0 from './level-0.json';
-import level1 from './level-1.json';
-import level2 from './level-2.json';
-import level3 from './level-3.json';
+import level0 from '../data/level-0.json';
+import level1 from '../data/level-1.json';
+import level2 from '../data/level-2.json';
+import level3 from '../data/level-3.json';
 
 const levels: Record<string, LevelData> = {
     'level-0': level0 as unknown as LevelData,

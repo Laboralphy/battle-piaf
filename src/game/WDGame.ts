@@ -104,6 +104,8 @@ const LEVEL_ROWS = 15;
 
 const SEMI_SOLID_TILE_SUB_Y = PHYSICAL_TILE_SIZE / 2;
 
+const ASSET_PATH_BACKGROUND = 'assets/images/backgrounds/';
+
 /**
  * Main game class for Battle Piaf.
  * Extends `FairyEngine` and implements the four lifecycle hooks:
@@ -127,6 +129,7 @@ export class WDGame extends FairyEngine {
     private _scoreEls: [HTMLElement | null, HTMLElement | null] = [null, null];
     private _hpBarEls: [HTMLElement | null, HTMLElement | null] = [null, null];
     private _precisionEls: [HTMLElement | null, HTMLElement | null] = [null, null];
+    private _timerEl: HTMLElement | null = null;
 
     /** Sound manager for jump, shoot, and hit effects. */
     private _sounds = new SoundManager();
@@ -187,7 +190,12 @@ export class WDGame extends FairyEngine {
             }
             if (!seen.has(level.background)) {
                 seen.add(level.background);
-                promises.push(this.loadImage(level.background, level.background));
+                promises.push(
+                    this.loadImage(
+                        ASSET_PATH_BACKGROUND + level.background + '.png',
+                        level.background
+                    )
+                );
             }
         }
         await Promise.all(promises);
@@ -205,6 +213,7 @@ export class WDGame extends FairyEngine {
             document.getElementById('precision_0'),
             document.getElementById('precision_1'),
         ];
+        this._timerEl = document.getElementById('round-timer');
         this._initRound();
     }
 
@@ -1298,6 +1307,10 @@ export class WDGame extends FairyEngine {
      * to the corresponding DOM elements and mark the store as up-to-date.
      */
     private _updateScoreDisplay(): void {
+        if (this._timerEl) {
+            const secsLeft = Math.ceil(this._roundTimer / TICKS_PER_SECOND);
+            this._timerEl.textContent = String(secsLeft);
+        }
         for (let i = 0; i < 2; i++) {
             const player = this._players[i];
             if (player.store.dirty.has('score') && this._scoreEls[i]) {
@@ -1323,7 +1336,10 @@ export class WDGame extends FairyEngine {
 
     /** Draw the winner overlay directly onto the game canvas. */
     private _drawWinnerScreen(): void {
-        this._sounds.stopBGM();
+        if (this._timerEl) {
+            this._timerEl.textContent = '';
+        }
+        this._sounds.stopBGM(1500);
         this.clearLayers();
         const canvas = this.getCanvas();
         const ctx = canvas.getContext('2d')!;
@@ -1335,15 +1351,16 @@ export class WDGame extends FairyEngine {
 
         const s0 = this._players[0].store.state.score;
         const s1 = this._players[1].store.state.score;
-        const winnerText = s0 > s1 ? 'PLAYER 1 WINS!' : s1 > s0 ? 'PLAYER 2 WINS!' : 'DRAW!';
+        const winnerText = s0 > s1 ? 'BLUE WINS!' : s1 > s0 ? 'RED WINS!' : 'DRAW!';
+        const textColor = s0 > s1 ? '#0099ff' : s1 > s0 ? '#ff8888' : '#aaaaaa';
 
         ctx.textAlign = 'center';
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 56px monospace';
+        ctx.fillStyle = textColor;
+        ctx.font = 'bold 28px monospace';
         ctx.fillText(winnerText, w / 2, h / 2 - 20);
 
         ctx.fillStyle = '#aaaaaa';
-        ctx.font = '28px monospace';
+        ctx.font = '14px monospace';
         ctx.fillText(`${s0}  —  ${s1}`, w / 2, h / 2 + 32);
     }
 

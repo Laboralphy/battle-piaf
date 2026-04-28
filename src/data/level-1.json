@@ -1,6 +1,6 @@
 {
     "tileset": "wdbob_land0_z1",
-    "background": "assets/images/backgrounds/bg-jail.png",
+    "background": "bg-jail",
     "music": "wire-star_paws",
     "map": [
         "2#2#2#2#2#2#2#2#2#2#2#2#2#2#2#2#2#2#2#2#",

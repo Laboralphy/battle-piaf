@@ -96,13 +96,25 @@ export class SoundManager {
         this._bgm.play();
     }
 
-    /** Stop and unload the current background music, if any. */
-    stopBGM(): void {
-        if (this._bgm) {
+    /**
+     * Stop the current background music.
+     * @param fadeOut - Fade-out duration in milliseconds (0 = immediate stop).
+     */
+    stopBGM(fadeOut = 0): void {
+        if (!this._bgm) return;
+        if (fadeOut <= 0) {
             this._bgm.stop();
             this._bgm.unload();
             this._bgm = null;
+            return;
         }
+        const bgm = this._bgm;
+        this._bgm = null;
+        bgm.fade(bgm.volume(), 0, fadeOut);
+        bgm.once('fade', () => {
+            bgm.stop();
+            bgm.unload();
+        });
     }
 
     /**

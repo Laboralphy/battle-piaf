@@ -6,11 +6,15 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    html {
+      font-size: 13px;
+    }
+
     body {
       background: #0d0d1a;
       color: #e0e0e0;
       font-family: monospace;
-      font-size: 13px;
+      font-size: 1rem;
       height: 100vh;
       overflow: hidden;
     }
@@ -38,7 +42,7 @@
     }
 
     #toolbar h1 {
-      font-size: 13px;
+      font-size: 1rem;
       color: #88aaff;
       letter-spacing: 1px;
       white-space: nowrap;
@@ -51,7 +55,7 @@
       flex-shrink: 0;
     }
 
-    .t-label { color: #556; font-size: 11px; white-space: nowrap; }
+    .t-label { color: #556; font-size: 0.85rem; white-space: nowrap; }
 
     input[type="text"] {
       background: #0d0d1a;
@@ -60,7 +64,7 @@
       padding: 3px 8px;
       border-radius: 3px;
       font-family: monospace;
-      font-size: 12px;
+      font-size: 0.92rem;
       width: 130px;
     }
     input[type="text"]:focus { outline: none; border-color: #558; }
@@ -72,7 +76,7 @@
       padding: 3px 6px;
       border-radius: 3px;
       font-family: monospace;
-      font-size: 12px;
+      font-size: 0.92rem;
     }
 
     button {
@@ -83,7 +87,7 @@
       border-radius: 3px;
       cursor: pointer;
       font-family: monospace;
-      font-size: 12px;
+      font-size: 0.92rem;
       white-space: nowrap;
     }
     button:hover:not(:disabled) { background: #2a2a5a; border-color: #558; }
@@ -147,7 +151,7 @@
     /* ── Hint bar ─────────────────────────────────────────────────────────── */
 
     #hints {
-      font-size: 10px;
+      font-size: 0.77rem;
       color: #446;
       text-align: center;
       flex-shrink: 0;
@@ -172,7 +176,7 @@
 
     <span class="t-label">background:</span>
     <select v-model="background">
-      <option value="background-0">background-0</option>
+      <option v-for="key in backgroundKeys" :value="key">{{ key }}</option>
     </select>
 
     <div class="sep"></div>

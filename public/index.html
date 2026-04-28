@@ -44,9 +44,17 @@
       <div class="pf-keys">4 ◀&nbsp;&nbsp;6 ▶&nbsp;&nbsp;8 ▲&nbsp;&nbsp;2 ▼&nbsp;&nbsp;Enter 🔫</div>
     </div>
 
+    <!-- ── Round timer — top-center ─────────────────────────────────────── -->
+    <div id="round-timer" data-active="false">0</div>
+
     <!-- ── Game layout ────────────────────────────────────────────────────── -->
     <div id="layout">
-      <div id="menu" data-active="true"></div>
+      <div id="menu" data-active="true">
+        <div id="menu-options">
+          <button id="btn-1p">1 Player</button>
+          <button id="btn-2p">2 Players</button>
+        </div>
+      </div>
       <canvas id="game-screen" data-active="false" width="320" height="240"></canvas>
     </div>
 

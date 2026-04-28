@@ -1,5 +1,6 @@
 import { createApp } from 'petite-vue';
-import LEVEL_SRCS from '../data/levels';
+import LEVEL_SRCS from './levels';
+import BACKGROUND_NAMES from './background';
 import type { LevelData } from '../game/levels';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -10,7 +11,7 @@ const META_MULT = 120;
 const COLS = 20;
 const ROWS = 15;
 const TILE_SRC = 16; // pixel size of one tile in the sprite sheet
-const TILE = 32;     // display size in the editor (2× upscale for usability)
+const TILE = 32; // display size in the editor (2× upscale for usability)
 const PAL_COLS = 6; // tiles per row in the palette grid
 const PAL_W = PAL_COLS * TILE; // 192 px
 const UNDO_LIMIT = 50;
@@ -156,7 +157,6 @@ function renderPalette(selectedGfx: number): void {
 
 // ── App ───────────────────────────────────────────────────────────────────────
 
-
 const LAND_TILES = 'assets/images/land-tiles/';
 const BACKGROUNDS_PATH = 'assets/images/backgrounds/';
 
@@ -165,9 +165,9 @@ const TILESHEETS: Record<string, string> = {
     wdbob_land1_z1: `${LAND_TILES}wdbob_land1_z1.png`,
 };
 
-const BACKGROUNDS: Record<string, string> = {
-    'background-0': `${BACKGROUNDS_PATH}background-0.png`,
-};
+const BACKGROUNDS: Record<string, string> = Object.fromEntries(
+    BACKGROUND_NAMES.map((name) => [name, `${BACKGROUNDS_PATH}${name}.png`])
+);
 
 function makeApp() {
     let painting = false;
@@ -175,6 +175,7 @@ function makeApp() {
 
     const app = {
         levelKeys: Object.keys(LEVEL_SRCS),
+        backgroundKeys: BACKGROUND_NAMES,
         grid: decodeLevel(LEVEL_SRCS[Object.keys(LEVEL_SRCS)[0]].map),
         undoStack: [] as Grid[],
         selectedGfx: 0,

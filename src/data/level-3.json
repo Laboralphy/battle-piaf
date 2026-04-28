@@ -1,6 +1,6 @@
 {
     "tileset": "wdbob_land1_z1",
-    "background": "assets/images/backgrounds/background-0.png",
+    "background": "background-0",
     "map": [
         "1#1#1#1#1#1#1#1#1#1#1#1#1#1#1#1#1#1#1#1#",
         "1#s.s.s.s.s.s.s.s.s.s.s.s.s.s.s.s.s.s.1#",

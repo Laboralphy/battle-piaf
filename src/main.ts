@@ -1,6 +1,5 @@
-import { initMenu, gameStart } from './menu/index.js';
+import { initMenu } from './menu/index.js';
 
 window.addEventListener('load', () => {
   initMenu();
-  window.addEventListener('keydown', gameStart);
 });

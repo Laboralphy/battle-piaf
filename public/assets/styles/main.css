@@ -1,5 +1,9 @@
 *, *::before, *::after { box-sizing: border-box; }
 
+html {
+  font-size: 16px;
+}
+
 html, body {
   margin: 0;
   padding: 0;
@@ -47,9 +51,29 @@ html, body {
   white-space: nowrap;
   font-family: '10 Pixel', serif;
   font-weight: bold;
-  font-size: 40px;
+  font-size: 2.5rem;
   color: #ffe066;
   text-shadow: 0 0 6px rgba(255, 180, 0, 0.7);
+}
+
+/* ── Round timer ─────────────────────────────────────────────────────────── */
+
+#round-timer {
+  position: fixed;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: '10 Pixel', monospace;
+  font-size: 2rem;
+  color: #ffe066;
+  text-shadow: 0 0 8px rgba(255, 180, 0, 0.7);
+  background: rgba(0, 0, 0, 0.55);
+  padding: 2px 16px 4px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  width: 6rem;
+  text-align: center;
+  user-select: none;
 }
 
 /* ── Menu ────────────────────────────────────────────────────────────────── */
@@ -71,6 +95,37 @@ html, body {
   height: 100%;
 }
 
+#menu-options {
+  position: absolute;
+  bottom: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 24px;
+}
+
+#menu-options button {
+  font-family: '10 Pixel', monospace;
+  font-size: 1.25rem;
+  color: #ffe066;
+  background: rgba(0, 0, 0, 0.6);
+  border: 2px solid rgba(255, 220, 80, 0.4);
+  border-radius: 4px;
+  padding: 8px 24px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+#menu-options button:hover,
+#menu-options button:focus {
+  background: rgba(255, 200, 0, 0.18);
+  border-color: #ffe066;
+  color: #fff;
+  outline: none;
+}
+
 /* ── Game screen ─────────────────────────────────────────────────────────── */
 
 #game-screen[data-active="true"] {
@@ -90,7 +145,7 @@ html, body {
   border-radius: 6px;
   overflow: hidden;
   font-family: '10 Pixel', monospace;
-  font-size: clamp(12px, 1.1vw, 16px);
+  font-size: clamp(0.75rem, 1.1vw, 1rem);
   color: #ddd;
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
@@ -104,7 +159,7 @@ html, body {
   display: flex;
   align-items: center;
   padding: 4px 10px;
-  font-size: clamp(13px, 1.2vw, 17px);
+  font-size: clamp(0.8125rem, 1.2vw, 1.0625rem);
   font-weight: bold;
   letter-spacing: 2px;
 }
@@ -183,7 +238,7 @@ html, body {
 /* Controls line */
 .pf-keys {
   padding: 5px 10px 7px;
-  font-size: clamp(10px, 0.9vw, 13px);
+  font-size: clamp(0.625rem, 0.9vw, 0.8125rem);
   color: #777;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   white-space: nowrap;

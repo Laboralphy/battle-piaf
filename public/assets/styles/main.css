@@ -58,6 +58,21 @@ html, body {
 
 /* ── Round timer ─────────────────────────────────────────────────────────── */
 
+@keyframes timer-blink {
+  0%, 49.9% {
+    color: #ffe066;
+    text-shadow: 0 0 8px rgba(255, 180, 0, 0.9);
+  }
+  50%, 100% {
+    color: #ff3333;
+    text-shadow: 0 0 10px rgba(255, 0, 0, 0.9);
+  }
+}
+
+#round-timer.blink {
+  animation: timer-blink 1s step-start infinite;
+}
+
 #round-timer {
   position: fixed;
   top: 8px;

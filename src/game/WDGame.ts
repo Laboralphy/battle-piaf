@@ -1310,6 +1310,7 @@ export class WDGame extends FairyEngine {
         if (this._timerEl) {
             const secsLeft = Math.ceil(this._roundTimer / TICKS_PER_SECOND);
             this._timerEl.textContent = String(secsLeft);
+            this._timerEl.classList.toggle('blink', secsLeft <= 10 && secsLeft > 0);
         }
         for (let i = 0; i < 2; i++) {
             const player = this._players[i];
@@ -1338,6 +1339,7 @@ export class WDGame extends FairyEngine {
     private _drawWinnerScreen(): void {
         if (this._timerEl) {
             this._timerEl.textContent = '';
+            this._timerEl.classList.remove('blink');
         }
         this._sounds.stopBGM(1500);
         this.clearLayers();

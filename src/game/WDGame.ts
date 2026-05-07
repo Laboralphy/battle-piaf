@@ -28,6 +28,7 @@ import { WDSkull } from './entities/WDSkull';
 import { WDSkullGrenade } from './entities/WDSkullGrenade';
 import { WDFlame } from './entities/WDFlame';
 import { WDBouncingBullet } from './entities/WDBouncingBullet';
+import { WinnerScreen } from './WinnerScreen.js';
 import { TILE_DATA } from './tile-animations';
 import LOOT_DATA from '../data/loot.json';
 import { FairyLayer } from '../engine/FairyLayer';
@@ -98,6 +99,7 @@ const TRIPLE_BULLET_VSPEED = 2;
 const ROUND_DURATION_TICKS = 100 * TICKS_PER_SECOND;
 /** How long the winner screen stays up before the next round starts, in ticks. */
 const ROUND_OVER_DISPLAY_TICKS = 5 * TICKS_PER_SECOND;
+const ROUND_OVER_DISPLAY_FADE_IN_TICKS = TICKS_PER_SECOND;
 
 const LEVEL_COLS = 20;
 const LEVEL_ROWS = 15;
@@ -166,6 +168,8 @@ export class WDGame extends FairyEngine {
     private _roundTimer = 0;
     /** Countdown during the winner screen (-1 while the game is running). */
     private _roundOverTimer = -1;
+    /** Winner screen compositor; allocated when a round ends, nulled on reset. */
+    private _winnerScreen: WinnerScreen | null = null;
 
     constructor(private readonly _options: WDGameOptions) {
         super();
@@ -360,6 +364,19 @@ export class WDGame extends FairyEngine {
             if (--this._roundOverTimer <= 0) {
                 return 'stateRoundReset';
             }
+            const t = Math.min(
+                1,
+                Math.max(
+                    0,
+                    1 -
+                        (this._roundOverTimer -
+                            (ROUND_OVER_DISPLAY_TICKS - ROUND_OVER_DISPLAY_FADE_IN_TICKS)) /
+                            ROUND_OVER_DISPLAY_FADE_IN_TICKS
+                )
+            );
+            console.log(t);
+            this._winnerScreen?.doFade(t);
+            this._winnerScreen?.render();
             return null;
         }
 
@@ -1335,35 +1352,24 @@ export class WDGame extends FairyEngine {
 
     // ── Round over / reset ────────────────────────────────────────────────────
 
-    /** Draw the winner overlay directly onto the game canvas. */
+    /** Set up the WinnerScreen compositor and freeze the game canvas. */
     private _drawWinnerScreen(): void {
         if (this._timerEl) {
             this._timerEl.textContent = '';
             this._timerEl.classList.remove('blink');
         }
         this._sounds.stopBGM(1500);
-        this.clearLayers();
         const canvas = this.getCanvas();
-        const ctx = canvas.getContext('2d')!;
-        const w = canvas.width;
-        const h = canvas.height;
-
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
-        ctx.fillRect(0, 0, w, h);
-
+        const ws = new WinnerScreen(canvas.width, canvas.height);
+        ws.captureRenderingScreen(canvas);
+        this.clearLayers();
         const s0 = this._players[0].store.state.score;
         const s1 = this._players[1].store.state.score;
         const winnerText = s0 > s1 ? 'BLUE WINS!' : s1 > s0 ? 'RED WINS!' : 'DRAW!';
-        const textColor = s0 > s1 ? '#0099ff' : s1 > s0 ? '#ff8888' : '#aaaaaa';
-
-        ctx.textAlign = 'center';
-        ctx.fillStyle = textColor;
-        ctx.font = 'bold 28px monospace';
-        ctx.fillText(winnerText, w / 2, h / 2 - 20);
-
-        ctx.fillStyle = '#aaaaaa';
-        ctx.font = '14px monospace';
-        ctx.fillText(`${s0}  —  ${s1}`, w / 2, h / 2 + 32);
+        ws.renderScore(winnerText, s0, s1);
+        ws.doFade(0);
+        ws.render();
+        this._winnerScreen = ws;
     }
 
     /**
@@ -1372,6 +1378,7 @@ export class WDGame extends FairyEngine {
      * from the current one), and rebuilds the round via `_initRound`.
      */
     private _doRoundReset(): string {
+        this._winnerScreen = null;
         const prev = this._levelIndex;
         do {
             this._levelIndex = Math.floor(Math.random() * LEVELS.length);
